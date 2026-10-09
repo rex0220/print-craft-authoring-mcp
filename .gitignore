@@ -1,0 +1,13 @@
+node_modules/
+# ビルドの出力（8.3）
+dist/
+dist-mcpb/
+*.mcpb
+# 認証情報とレコードの値（入れてはいけないもの。8.2）
+.env
+env/
+records/
+out/
+# OS
+.DS_Store
+Thumbs.db
