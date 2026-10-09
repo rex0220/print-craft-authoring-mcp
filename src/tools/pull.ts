@@ -13,7 +13,7 @@ import { FileExistsError, InputError, RestError, WRITE_ROOTS, appDirFor, assertC
 import type { ServerContext } from "../context.ts";
 import { failure, ok } from "../result.ts";
 import { isToolResult, prepare, workspaceIdSchema } from "./common.ts";
-import { fromError, rel } from "./files.ts";
+import { checkHostDir, fromError, redactPersonal, rel } from "./files.ts";
 import { appIdOf, appSchema, envSchema, kintoneFor } from "./kintone.ts";
 
 export function registerPull(server: McpServer, ctx: ServerContext): void {
@@ -48,6 +48,8 @@ export function registerPull(server: McpServer, ctx: ServerContext): void {
           const pluginId = w.engine.source.pluginId;
           if (!pluginId) throw new InputError("印刷屋のプラグイン ID が分からない（印刷屋の zip に PUBKEY が無い）");
           const target = kintoneFor(ctx, w.root, input.env);
+          // 保存先のホストのフォルダーの実体が作業フォルダーの中か（kintone に送る前に。Codex の B1 レビュー BLOCKER 1）
+          if (target.env) checkHostDir(w.root, target.env);
           const appId = appIdOf(target, input.app);
           const usePreview = "preview" in input && input.preview === true;
           let result;
@@ -82,7 +84,7 @@ export function registerPull(server: McpServer, ctx: ServerContext): void {
           }
           const menus = (Array.isArray(result.envelope.pluginInfos) ? result.envelope.pluginInfos : []).map((r) => String((r as { menu?: unknown }).menu ?? ""));
           return ok(
-            { path: rel(w.root, real), appId, appName: result.appName, revision: result.revision, format: result.format, preview: usePreview, menus, buttons: listButtons(result.envelope, { file: rel(w.root, real) }), auth: target.authLabel, baseUrl: target.client.baseUrl },
+            { path: rel(w.root, real), appId, appName: result.appName, revision: result.revision, format: result.format, preview: usePreview, menus, buttons: listButtons(redactPersonal(result.envelope), { file: rel(w.root, real) }), auth: target.authLabel, baseUrl: target.client.baseUrl },
             { digest: digestOf(text) }
           );
         } catch (e) {

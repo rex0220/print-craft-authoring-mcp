@@ -109,7 +109,9 @@ test("pcraft_preview: out/ に書き、ページ数を返す（HTML とレコー
     const r = await s.call("pcraft_preview", { workspaceId: root, path: "settings/見積書.json", record: "records/3740-3.json", fields: "fields/3740.json" });
     assert.equal(sc(r).status, "ok", JSON.stringify(sc(r)));
     const [b] = sc(r).result.results;
-    assert.deepEqual([b.menu, b.pages, b.fileName], ["見積書", 1, "見積書-S-0000003.pdf"]);
+    assert.deepEqual([b.menu, b.pages], ["見積書", 1]);
+    assert.ok(!("fileName" in b), "ファイル名（$fname をレコードで評価したもの）は返さない（Codex の B1 レビュー BLOCKER 2）");
+    assert.ok(!JSON.stringify(r).includes("S-0000003"), "ファイル名に入るレコードの値（見積番号）を返さない");
     assert.ok(existsSync(path.join(root, b.file)) && b.file.startsWith("out/"), b.file);
     assert.ok(!JSON.stringify(r).includes("□□□□株式会社") && !JSON.stringify(r).includes("<html"), "HTML とレコードの値は返さない");
     writeFileSync(path.join(root, "settings", "壊れた.json"), settings({ pluginInfos: [{ ...JSON.parse(button()), menu: "壊れた", tagsInfo: { ...JSON.parse(button()).tagsInfo, pageSize: "X9" } }] }));

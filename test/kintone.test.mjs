@@ -99,7 +99,7 @@ test("environments.json: 名前でアプリ、envFile だけから認証、ア�
     assert.deepEqual([prod.status, prod.error.code], ["denied", "PermissionError"], "本番の項目定義は保存しない（4.2 の P7）");
     assert.ok(!existsSync(path.join(root, "kintone", "x.cybozu.com", "3740-見積書(印刷屋)", "fields.json")));
     const unknown = sc(await s.call("pcraft_fields", { workspaceId: root, app: "見積書", env: "stage" }));
-    assert.equal(unknown.status, "failed", JSON.stringify(unknown));
+    assert.deepEqual([unknown.status, unknown.error.code], ["invalid", "WorkspaceError"], "知らない環境の名前は入力の誤り（Codex の B1 レビュー MINOR 1）");
     writeFileSync(path.join(root, "environments.json"), JSON.stringify({ environments: { dev: { baseUrl: "https://dev-x.cybozu.com", envFile: "env/dev.env" } }, apps: [{ name: "見積書", dev: 101 }] }));
     const unclassified = sc(await s.call("pcraft_fields", { workspaceId: root, app: "見積書" }));
     assert.deepEqual([unclassified.status, unclassified.error.code], ["denied", "PermissionError"]);

@@ -20,7 +20,6 @@ import {
   assertChangeAllowed,
   diffSettings,
   editNameOf,
-  findAppDir,
   listAppFolder,
   loadWorkspace,
   pickEnv,
@@ -33,7 +32,7 @@ import {
 import type { ServerContext } from "../context.ts";
 import { ok, type Finding } from "../result.ts";
 import { incompatibleResult, workspaceIdSchema } from "./common.ts";
-import { fromError, readSettingsFile, rel } from "./files.ts";
+import { appDirIn, checkHostDir, checkRelPaths, fromError, insideDir, readSettingsFile, redactPersonal, rel } from "./files.ts";
 import { appSchema, envSchema } from "./kintone.ts";
 
 /** 一覧の上限（AI に返す量） */
@@ -88,7 +87,7 @@ export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): v
         if (input.app === undefined) throw new InputError("environments.json があるときは app（番号か apps の名前）が要る");
         const env = pickEnv(ws, input.env);
         const appId = typeof input.app === "number" ? input.app : resolveApp(ws, env, input.app).appId;
-        const dir = findAppDir(root, env, appId);
+        const dir = appDirIn(root, env, appId);
         if (!dir) throw new InputError(`アプリ ${appId} のフォルダー（kintone/${env.host}/${appId}-…）が無い。先に pcraft_fields で項目定義を取る`);
         const l = listAppFolder(dir);
         return ok({
@@ -129,6 +128,9 @@ export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): v
         const ws = loadWorkspace(root);
         if (!ws) throw workspaceRequired("pcraft_take");
         if (input.env !== undefined) pickEnv(ws, input.env);
+        // inbox と kintone/ の実体が作業フォルダーの中か（symlink で外を指していれば、一覧を作る前に断る。Codex の B1 レビュー BLOCKER 1）
+        if (existsSync(path.join(root, INBOX))) insideDir(root, path.join(root, INBOX));
+        for (const env of Object.values(ws.environments)) checkHostDir(root, env);
         const r = takeInbox(root, ws, input.env);
         const findings: Finding[] = [
           ...r.skipped.map((s) => ({ level: "warning", rule: "take.skipped", message: `${s.file}: ${s.reason}` })),
@@ -160,6 +162,7 @@ export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): v
     },
     async (input) => {
       try {
+        checkRelPaths({ path: input.path });
         const root = ctx.binding.resolve(input.workspaceId);
         const incompatible = incompatibleResult();
         if (incompatible) return incompatible;
@@ -170,7 +173,7 @@ export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): v
           if (input.app === undefined) throw new InputError("path か app が要る");
           const env = pickEnv(ws, input.env);
           const appId = typeof input.app === "number" ? input.app : resolveApp(ws, env, input.app).appId;
-          const dir = findAppDir(root, env, appId);
+          const dir = appDirIn(root, env, appId);
           if (!dir) throw new InputError(`アプリ ${appId} のフォルダーが無い。先に pcraft_fields`);
           const l = listAppFolder(dir);
           if (!l.snapshots.length) throw new InputError(`${rel(root, dir)} にダウンロード / pull のファイルが無い（設定画面でダウンロードして inbox/ に置き pcraft_take、または pcraft_pull）`);
@@ -216,12 +219,14 @@ export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): v
     },
     async (input) => {
       try {
+        checkRelPaths({ before: input.before, after: input.after });
         const root = ctx.binding.resolve(input.workspaceId);
         const incompatible = incompatibleResult();
         if (incompatible) return incompatible;
         const a = readSettingsFile(root, input.before);
         const b = readSettingsFile(root, input.after);
-        let text = diffSettings(a.settings, b.settings, { derived: input.derived === true });
+        // 権限のユーザー・組織・グループ・ゲストの値は伏せる（件数と digest。変わったかは分かる。Codex の B1 レビュー MAJOR 1）
+        let text = diffSettings(redactPersonal(a.settings), redactPersonal(b.settings), { derived: input.derived === true });
         const truncated = text.length > MAX_DIFF_CHARS;
         if (truncated) text = `${text.slice(0, MAX_DIFF_CHARS)}\n…（打ち切った）`;
         return ok({ before: a.relPath, after: b.relPath, text }, truncated ? { findings: [{ level: "info", rule: "truncated", message: "差を打ち切った" }] } : {});

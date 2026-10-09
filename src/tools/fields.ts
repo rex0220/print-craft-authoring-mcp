@@ -10,7 +10,7 @@ import { WRITE_ROOTS, appDirFor, fetchFields, listFields } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { ok } from "../result.ts";
 import { incompatibleResult, workspaceIdSchema } from "./common.ts";
-import { fromError, rel, writeChecked } from "./files.ts";
+import { checkHostDir, fromError, rel, writeChecked } from "./files.ts";
 import { appIdOf, appSchema, envSchema, kintoneFor } from "./kintone.ts";
 
 /** 要約の上限（AI に返す量） */
@@ -41,6 +41,8 @@ export function registerFields(server: McpServer, ctx: ServerContext): void {
         const incompatible = incompatibleResult();
         if (incompatible) return incompatible;
         const target = kintoneFor(ctx, root, input.env);
+        // 保存先のホストのフォルダーの実体が作業フォルダーの中か（kintone に送る前に。Codex の B1 レビュー BLOCKER 1）
+        if (target.env) checkHostDir(root, target.env);
         const appId = appIdOf(target, input.app);
         const file = await fetchFields(target.client, { app: appId, preview: input.preview === true, guestSpaceId: input.guestSpaceId });
         const out =

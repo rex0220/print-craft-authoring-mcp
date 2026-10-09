@@ -8,9 +8,10 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { WorkspaceError } from "../binding.ts";
 import { WORKSPACE_FILE, loadWorkspace } from "../core.ts";
-import { zipGuide, zipOf, type ServerContext } from "../context.ts";
+import type { ServerContext } from "../context.ts";
 import { failure, ok, unexpected } from "../result.ts";
 import { workspaceIdSchema } from "./common.ts";
+import { zipReport } from "./zip-report.ts";
 
 export function registerWorkspaceStatus(server: McpServer, ctx: ServerContext): void {
   server.registerTool(
@@ -50,15 +51,14 @@ export function registerWorkspaceStatus(server: McpServer, ctx: ServerContext): 
           problem = (e as Error).message;
           next.push(`${WORKSPACE_FILE} が読めない: ${problem}（利用者が直す。AI は書かない）`);
         }
-        const zip = zipOf(ctx, root);
-        if (zip.problem) next.push(`印刷屋の zip の設定が読めない: ${zip.problem}`);
-        else if (!zip.zip) next.push(`印刷屋の zip が未設定。${zipGuide(ctx.surface)}`);
+        const zip = await zipReport(ctx, root);
+        if (zip.next) next.push(zip.next);
         return ok({
           ready: next.length === 0,
           next: next.length ? next : ["準備ができている"],
-          workspace: root,
+          workspace: { name: path.basename(root) },
           environmentsJson: { exists: existsSync(path.join(root, WORKSPACE_FILE)), ...(environments ? { environments } : {}), ...(problem ? { problem } : {}) },
-          pluginZip: { configured: zip.zip !== undefined, source: zip.source, ...(zip.zip ? { path: zip.zip } : {}), ...(zip.problem ? { problem: zip.problem } : {}) }
+          pluginZip: zip.report
         });
       } catch (e) {
         return unexpected(e);

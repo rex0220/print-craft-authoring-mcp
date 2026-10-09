@@ -8,7 +8,7 @@ import { listButtons } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { ok } from "../result.ts";
 import { incompatibleResult, workspaceIdSchema } from "./common.ts";
-import { fromError, readSettingsFile } from "./files.ts";
+import { checkRelPaths, fromError, readSettingsFile, redactPersonal } from "./files.ts";
 
 export function registerButtons(server: McpServer, ctx: ServerContext): void {
   server.registerTool(
@@ -29,11 +29,13 @@ export function registerButtons(server: McpServer, ctx: ServerContext): void {
     },
     async (input) => {
       try {
+        checkRelPaths({ path: input.path });
         const root = ctx.binding.resolve(input.workspaceId);
         const incompatible = incompatibleResult();
         if (incompatible) return incompatible;
         const f = readSettingsFile(root, input.path);
-        const text = listButtons(f.settings, { file: f.relPath, button: input.button });
+        // 権限のユーザー・組織・グループ・ゲストの値は伏せる（件数と digest。Codex の B1 レビュー MAJOR 1）
+        const text = listButtons(redactPersonal(f.settings), { file: f.relPath, button: input.button });
         const menus = (Array.isArray(f.settings.pluginInfos) ? f.settings.pluginInfos : []).map((r) => String((r as { menu?: unknown }).menu ?? ""));
         return ok({ path: f.relPath, menus, text }, { digest: f.digest });
       } catch (e) {

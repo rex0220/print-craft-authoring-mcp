@@ -5,6 +5,7 @@
  *   - アプリのフォルダー（kintone/<ホスト名>/<番号>-…/）の中の設定は、同じフォルダーの fields.json と、その環境の接続先を使う
  *   - 書く直前に、書ける場所と、kintone/ の下なら操作 × 場所の許可（environments.json を読み直す）を確かめ直す
  */
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { WorkspaceError as BindingError } from "../binding.ts";
@@ -17,16 +18,19 @@ import {
   PathError,
   PermissionError,
   QueryError,
+  WorkspaceError as CoreWorkspaceError,
   appFolderOfFile,
   assertChangeAllowed,
   baseUrlFromEnv,
   digestOf,
   envOfAppFolder,
+  findAppDir,
   loadWorkspace,
   resolveRead,
   resolveWrite,
   roleOfTarget,
-  type ChangeOp
+  type ChangeOp,
+  type EnvironmentDef
 } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { failure, type ToolResult } from "../result.ts";
@@ -35,6 +39,45 @@ import { failure, type ToolResult } from "../result.ts";
 export const SETTINGS_PLUGIN_ID = "rex0220 Print craft plugin";
 
 export const rel = (root: string, abs: string): string => path.relative(root, abs).replace(/\\/g, "/");
+
+/**
+ * ツールの引数のパスは作業フォルダーからの相対パスだけ（実装案 5.1「..・絶対パス・ドライブ名・cwd を受け付けない」）。
+ * 中核の resolveRead / resolveWrite は作業フォルダーの中を指す絶対パスや settings/../x.json も受け付けるので、入口で断る（Codex の B1 レビュー MAJOR 4）。
+ * \\ も断る（Windows では区切り。区切りは / にそろえる）
+ */
+export function checkRelPath(p: string, what = "パス"): void {
+  if (p.includes("\0")) throw new PathError(`${what}に使えない文字がある`);
+  if (path.isAbsolute(p) || path.win32.isAbsolute(p) || /^[A-Za-z]:/.test(p) || p.startsWith("~")) throw new PathError(`${what}は作業フォルダーからの相対パスで書く（絶対パス・ドライブ名・~ は使わない）: ${p}`);
+  if (p.includes("\\")) throw new PathError(`${what}の区切りは / にする（\\ は使わない）: ${p}`);
+  if (p.split("/").some((seg) => seg === "..")) throw new PathError(`${what}に .. は使わない: ${p}`);
+}
+
+/** ツールの引数のパスをまとめて確かめる（undefined は飛ばす） */
+export function checkRelPaths(paths: Record<string, string | undefined>): void {
+  for (const [what, p] of Object.entries(paths)) if (p !== undefined) checkRelPath(p, what);
+}
+
+/** フォルダーの実体が作業フォルダーの中か（symlink で外を指していれば PathError）。一覧を作る前に確かめる（Codex の B1 レビュー BLOCKER 1） */
+export function insideDir(root: string, dir: string): string {
+  return resolveRead(rel(root, dir), root);
+}
+
+/** kintone/ と kintone/<ホスト名> の実体が作業フォルダーの中か（中核の findAppDir / appDirFor がその中を一覧する前に。無ければ何もしない） */
+export function checkHostDir(root: string, env: EnvironmentDef): void {
+  for (const d of [path.join(root, "kintone"), path.join(root, "kintone", env.host)]) if (existsSync(d)) insideDir(root, d);
+}
+
+/** アプリのフォルダー（kintone/<ホスト名>/<番号>-…）。ホストのフォルダーとアプリのフォルダーの実体が作業フォルダーの中のときだけ返す */
+export function appDirIn(root: string, env: EnvironmentDef, appId: number): string | null {
+  const hostDir = path.join(root, "kintone", env.host);
+  if (!existsSync(hostDir)) return null;
+  checkHostDir(root, env);
+  const dir = findAppDir(root, env, appId);
+  if (!dir) return null;
+  const real = insideDir(root, dir);
+  for (const sub of ["records", "out"]) if (existsSync(path.join(real, sub))) insideDir(root, path.join(real, sub));
+  return real;
+}
 
 export interface SettingsFile {
   /** 実際のパス */
@@ -122,6 +165,8 @@ export function writeChecked(root: string, target: string, text: string, roots: 
 export function fromError(e: unknown): ToolResult {
   const message = e instanceof Error ? e.message : String(e);
   if (e instanceof BindingError) return failure("denied", "WorkspaceError", message);
+  // environments.json の誤り・知らない環境の名前・apps に無いアプリの名前は入力の誤り（Codex の B1 レビュー MINOR 1）
+  if (e instanceof CoreWorkspaceError) return failure("invalid", "WorkspaceError", message);
   if (e instanceof PathError) return failure("denied", "PathError", message);
   if (e instanceof PermissionError) return failure("denied", "PermissionError", message);
   if (e instanceof FileExistsError || e instanceof LockBusyError) return failure("conflict", "ConflictError", message);
@@ -130,4 +175,29 @@ export function fromError(e: unknown): ToolResult {
   if (e instanceof InputError || e instanceof SyntaxError) return failure("invalid", "InputError", message);
   const err = e instanceof Error ? e : new Error(message);
   return failure("failed", err.name && err.name !== "Error" ? err.name : err.constructor?.name ?? "Error", message);
+}
+
+const shortHash = (v: unknown): string => createHash("sha256").update(JSON.stringify(v)).digest("hex").slice(0, 8);
+const csvCount = (v: unknown): number => (typeof v === "string" ? v.split(",").map((x) => x.trim()).filter(Boolean).length : 0);
+
+/**
+ * AI に返す前に、設定の中の個人を指す値を伏せる（ボタンの権限のユーザー・組織・グループ・ゲストの CSV、ルートの guestsInfo）。
+ * 件数と短い digest にする（変わったかは分かるように。pcraft_diff）。設定ファイルそのものは変えない（Codex の B1 レビュー MAJOR 1）
+ */
+export function redactPersonal(settings: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...settings };
+  if (Array.isArray(settings.pluginInfos)) {
+    out.pluginInfos = (settings.pluginInfos as Array<Record<string, unknown>>).map((row) => {
+      if (!row || typeof row !== "object") return row;
+      const r: Record<string, unknown> = { ...row };
+      for (const [k, label] of [["users", "ユーザー"], ["organizations", "組織"], ["groups", "グループ"], ["guest", "ゲスト"]] as const) {
+        if (typeof r[k] === "string" && r[k]) r[k] = `（${label} ${csvCount(r[k])} 件。値は出さない #${shortHash(r[k])}）`;
+      }
+      return r;
+    });
+  }
+  if (Array.isArray(settings.guestsInfo)) {
+    out.guestsInfo = (settings.guestsInfo as unknown[]).map((g) => `（ゲスト。値は出さない #${shortHash(g)}）`);
+  }
+  return out;
 }

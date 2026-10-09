@@ -9,7 +9,7 @@ import { z } from "zod";
 import { MAX_SAVE_INPUT_BYTES, saveNewSettings } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { fromSaveResult, isToolResult, prepare, workspaceIdSchema } from "./common.ts";
-import { fromError, trustedBaseUrl } from "./files.ts";
+import { checkRelPaths, fromError, trustedBaseUrl } from "./files.ts";
 
 export function registerSaveSettings(server: McpServer, ctx: ServerContext): void {
   server.registerTool(
@@ -33,6 +33,7 @@ export function registerSaveSettings(server: McpServer, ctx: ServerContext): voi
     (input) =>
       ctx.serial(async () => {
         try {
+          checkRelPaths({ path: input.path, fields: input.fields });
           const w = await prepare(ctx, input.workspaceId);
           if (isToolResult(w)) return w;
           const baseUrl = trustedBaseUrl(ctx, w.root, path.resolve(w.root, input.path));

@@ -79,15 +79,15 @@ export const manifest = {
     kintoneBaseUrl: {
       type: "string",
       title: "kintone の URL",
-      description: "https://<サブドメイン>.cybozu.com（項目定義・レコード・設定を取るとき）",
-      required: false
+      description: "https://<サブドメイン>.cybozu.com",
+      required: true
     },
     kintoneApiToken: {
       type: "string",
       title: "kintone の API トークン",
       description: "帳票を作るアプリの、閲覧だけの API トークン（チャットには書かない）",
       sensitive: true,
-      required: false
+      required: true
     }
   }
 };

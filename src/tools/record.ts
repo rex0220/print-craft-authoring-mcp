@@ -8,11 +8,11 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
-import { InputError, WRITE_ROOTS, describeRecord, fetchRecord, findAppDir, usedFieldCodes } from "../core.ts";
+import { InputError, WRITE_ROOTS, describeRecord, fetchRecord, usedFieldCodes } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { ok } from "../result.ts";
 import { incompatibleResult, workspaceIdSchema } from "./common.ts";
-import { fromError, readSettingsFile, rel, writeChecked } from "./files.ts";
+import { appDirIn, checkRelPaths, fromError, readSettingsFile, rel, writeChecked } from "./files.ts";
 import { appIdOf, appSchema, envSchema, kintoneFor } from "./kintone.ts";
 
 export function registerRecord(server: McpServer, ctx: ServerContext): void {
@@ -37,6 +37,7 @@ export function registerRecord(server: McpServer, ctx: ServerContext): void {
     },
     async (input) => {
       try {
+        checkRelPaths({ fieldsFrom: input.fieldsFrom });
         const root = ctx.binding.resolve(input.workspaceId);
         const incompatible = incompatibleResult();
         if (incompatible) return incompatible;
@@ -45,7 +46,7 @@ export function registerRecord(server: McpServer, ctx: ServerContext): void {
         let outRel: string;
         let roots: readonly string[];
         if (target.ws && target.env) {
-          const dir = findAppDir(root, target.env, appId);
+          const dir = appDirIn(root, target.env, appId);
           if (!dir) throw new InputError(`アプリ ${appId} のフォルダー（kintone/${target.env.host}/${appId}-…）が無い。先に pcraft_fields で項目定義を取る`);
           outRel = path.join(dir, "records", `${input.id}.json`);
           roots = WRITE_ROOTS.kintone;

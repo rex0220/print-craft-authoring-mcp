@@ -12,7 +12,9 @@ test("environments.json が無い作業フォルダー（今の 1 環境の使�
   try {
     const r = sc(await s.call("pcraft_workspace_status", { workspaceId: root }));
     assert.equal(r.status, "ok");
-    assert.equal(r.result.workspace, root);
+    assert.deepEqual(r.result.workspace, { name: path.basename(root) });
+    assert.ok(!JSON.stringify(r).includes(root), "絶対パスを返さない");
+    assert.deepEqual([r.result.pluginZip.readable, r.result.pluginZip.compatible], [true, true]);
     assert.deepEqual(r.result.environmentsJson, { exists: false });
     assert.equal(r.result.ready, true, JSON.stringify(r.result.next));
     assert.deepEqual(readdirSync(root), ["fields"], "診断は何も作らない");
@@ -59,7 +61,7 @@ test("未登録の workspaceId は denied（照合は通す）。Desktop では 
   const d = await connectDesktop(root);
   try {
     const r = sc(await d.call("pcraft_workspace_status", {}));
-    assert.deepEqual([r.status, r.result.workspace], ["ok", root]);
+    assert.deepEqual([r.status, r.result.workspace], ["ok", { name: path.basename(root) }]);
   } finally {
     await d.close();
     rmSync(root, { recursive: true, force: true });

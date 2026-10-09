@@ -27,8 +27,11 @@ test("ツールの一覧と入力の厳しいスキーマ（additionalProperties
     assert.match(String(instructions).split("\n")[0], new RegExp(`^print-craft MCP ${VERSION.replace(/\./g, "\\.")}（中核 @rex0220/print-craft-authoring-tools`));
     const st = sc(await s.call("pcraft_status", {}));
     assert.equal(st.result.ready, true, JSON.stringify(st.result.next));
-    assert.deepEqual(st.result.workspace.registered, [root]);
+    assert.equal(st.result.workspace.registered, 1);
+    assert.deepEqual(st.result.workspace.names, [path.basename(root)]);
     assert.equal(st.result.pluginZip.source, "設定項目");
+    assert.deepEqual([st.result.pluginZip.readable, st.result.pluginZip.compatible, st.result.pluginZip.pluginVersion, st.result.pluginZip.authoringApiVersion], [true, true, "7", 2], "zip を実際に読む");
+    assert.ok(!JSON.stringify(st).includes(root) && !JSON.stringify(st).includes(ZIP), "絶対パスを返さない（Codex の B1 レビュー MAJOR 3）");
     assert.equal(st.result.version, VERSION);
   } finally {
     await s.close();
@@ -136,7 +139,7 @@ test("設定項目が置き換えられずに ${user_config.…} の字のまま
   const s = await connect(["--surface", "claude-code", "--roots", "${user_config.workspaceRoots}"], { PCRAFT_PLUGIN_ZIP: "${user_config.pluginZip}" });
   try {
     const st = sc(await s.call("pcraft_status", {}));
-    assert.deepEqual(st.result.workspace.registered, []);
+    assert.equal(st.result.workspace.registered, 0);
     assert.equal(st.result.pluginZip.configured, false);
   } finally {
     await s.close();
@@ -159,7 +162,7 @@ test("desktop: 作業フォルダーが無ければ最後の 1 段だけ作る�
     try {
       assert.ok(existsSync(fresh));
       const st = sc(await s.call("pcraft_status", {}));
-      assert.deepEqual(st.result.workspace, { configured: true, path: fresh });
+      assert.deepEqual(st.result.workspace, { configured: true, name: "workspace" });
       assert.equal(st.result.ready, true);
       mkdirSync(path.join(fresh, "fields"));
       writeFileSync(path.join(fresh, "fields", "3740.json"), FIELDS_TEXT);
@@ -175,7 +178,7 @@ test("desktop: 作業フォルダーが無ければ最後の 1 段だけ作る�
     try {
       const s2 = await connect(["--surface", "desktop", "--workspace-dir", "~/pcraft-desktop"], { PCRAFT_PLUGIN_ZIP: ZIP, HOME: home, USERPROFILE: home });
       try {
-        assert.deepEqual(sc(await s2.call("pcraft_status", {})).result.workspace, { configured: true, path: path.join(home, "pcraft-desktop") });
+        assert.deepEqual(sc(await s2.call("pcraft_status", {})).result.workspace, { configured: true, name: "pcraft-desktop" });
       } finally {
         await s2.close();
       }

@@ -35,7 +35,8 @@
       "type": "string",
       "title": "kintone のログイン名",
       "description": "API トークンを使わないとき（空なら作業フォルダーの .env）",
-      "required": false
+      "required": false,
+      "sensitive": true
     },
     "kintonePassword": {
       "type": "string",

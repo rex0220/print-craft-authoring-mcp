@@ -8,7 +8,7 @@ import { DEFAULT_CONTEXT_BASE_URL, normalizeSettings, readFieldsFile } from "../
 import type { ServerContext } from "../context.ts";
 import { failure, ok, type Finding } from "../result.ts";
 import { isToolResult, prepare, workspaceIdSchema } from "./common.ts";
-import { fieldsFileFor, fromError, readSettingsFile, trustedBaseUrl } from "./files.ts";
+import { checkRelPaths, fieldsFileFor, fromError, readSettingsFile, trustedBaseUrl } from "./files.ts";
 
 /** --check の差の件数の上限（AI に返す量） */
 const MAX_CHECK_DIFFS = 50;
@@ -34,6 +34,7 @@ export function registerNormalize(server: McpServer, ctx: ServerContext): void {
     (input) =>
       ctx.serial(async () => {
         try {
+          checkRelPaths({ path: input.path, fields: input.fields });
           const w = await prepare(ctx, input.workspaceId);
           if (isToolResult(w)) return w;
           const f = readSettingsFile(w.root, input.path);

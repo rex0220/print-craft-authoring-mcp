@@ -62,6 +62,11 @@ async function main() {
   assert(manifest.user_config.workspaceDir?.type === "directory" && manifest.user_config.workspaceDir.required === true, "workspaceDir は必須のフォルダー");
   assert(manifest.user_config.pluginZip?.type === "file" && manifest.user_config.pluginZip.required === true, "pluginZip は必須のファイル");
   assert(manifest.user_config.kintoneApiToken?.sensitive === true, "API トークンは sensitive");
+  // 設定項目の必須と秘密の印（実装案 6.1: Desktop は URL と API トークンも必須。Codex の B1 レビュー MAJOR 5）
+  for (const k of ["workspaceDir", "pluginZip", "kintoneBaseUrl", "kintoneApiToken"]) assert(manifest.user_config[k]?.required === true, `${k} は必須`);
+  for (const [k, v] of Object.entries(manifest.user_config)) assert((v.sensitive === true) === /token|password|username/i.test(k), `${k} の sensitive（秘密の値の項目だけ）`);
+  const plugin = JSON.parse(readFileSync(path.join(root, ".claude-plugin", "plugin.json"), "utf8"));
+  for (const [k, v] of Object.entries(plugin.userConfig)) assert((v.sensitive === true) === /token|password|username/i.test(k), `プラグインの ${k} の sensitive（秘密の値の項目だけ）`);
   assert(JSON.stringify(manifest.compatibility?.platforms) === JSON.stringify(["darwin", "win32"]), "platforms");
   const launcher = entries.get("server/index.cjs").toString("utf8");
   assert(launcher.includes("main().catch") && !launcher.includes("require.main"), "起動のファイルは main() を必ず呼ぶ");
@@ -100,7 +105,9 @@ async function main() {
     const docs = (await call("pcraft_docs", {})).content.map((c) => c.text).join("\n");
     assert(docs.startsWith(`print-craft MCP ${manifest.version}（`) && /資料の元: rex0220\/print-craft-authoring /.test(docs), "pcraft_docs の目次は版の行と資料の元で始まる");
     const st = (await call("pcraft_status", {})).structuredContent;
-    assert(st.result.ready === true && st.result.workspace.path === workspace && existsSync(workspace), `作業フォルダーを作って準備ができた: ${JSON.stringify(st.result.next)}`);
+    assert(st.result.ready === true && st.result.workspace.name === path.basename(workspace) && existsSync(workspace), `作業フォルダーを作って準備ができた: ${JSON.stringify(st.result.next)}`);
+    assert(st.result.pluginZip.readable === true && st.result.pluginZip.compatible === true, "印刷屋の zip を読めて互換");
+    assert(!JSON.stringify(st).includes(workspace) && !JSON.stringify(st).includes(ZIP), "診断は絶対パスを返さない");
     mkdirSync(path.join(workspace, "fields"));
     writeFileSync(path.join(workspace, "fields", "3740.json"), readFileSync(path.join(root, "test", "fixtures", "fields-3740.json")));
     const input = { path: "settings/APP3740-見積書-見積書.json", content: readFileSync(path.join(root, "test", "fixtures", "settings-mitsumori.json"), "utf8"), fields: "fields/3740.json", expectedAbsent: true };

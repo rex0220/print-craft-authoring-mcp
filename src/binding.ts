@@ -88,7 +88,7 @@ export function fixWorkspace(raw: string | undefined): FixedWorkspace {
     } catch {
       // すぐ上のフォルダーが無い
     }
-    if (!parentIsDir) return { problem: `作業フォルダーが無く、すぐ上のフォルダー（${parent}）も無いので作らない。フォルダーを作るか、選び直す` };
+    if (!parentIsDir) return { problem: `作業フォルダーが無く、すぐ上のフォルダー（${path.basename(parent)}）も無いので作らない。フォルダーを作るか、選び直す` };
     try {
       mkdirSync(dir); // 最後の 1 段だけ（recursive にしない）
       createdNow = true;
