@@ -14,10 +14,12 @@ import { registerFields } from "./tools/fields.ts";
 import { registerKintoneGet } from "./tools/kintone-get.ts";
 import { registerNormalize } from "./tools/normalize.ts";
 import { registerPreview } from "./tools/preview.ts";
+import { registerPull } from "./tools/pull.ts";
 import { registerRecord } from "./tools/record.ts";
 import { registerSaveSettings } from "./tools/save.ts";
 import { registerStatus } from "./tools/status.ts";
 import { registerUpdateButton } from "./tools/update-button.ts";
+import { registerWorkspaceFiles } from "./tools/workspace-files.ts";
 import { registerWorkspaceStatus } from "./tools/workspace-status.ts";
 import { VERSION, versionLine } from "./version.ts";
 
@@ -53,6 +55,8 @@ export function createServer(ctx: ServerContext): McpServer {
   registerPreview(server, ctx);
   registerFields(server, ctx);
   registerRecord(server, ctx);
+  registerPull(server, ctx);
+  registerWorkspaceFiles(server, ctx);
   // Desktop だけ: kintone の GET（Claude Code では公式の kintone MCP。同じことをするツールを出さない。5.1）
   if (ctx.surface === "desktop") registerKintoneGet(server, ctx);
   return server;
