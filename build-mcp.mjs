@@ -7,9 +7,11 @@
 // 使い方: node build-mcp.mjs
 import { build } from "esbuild";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { DOC_SECTIONS } from "./scripts/docs-sections.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(root, "dist");
@@ -17,6 +19,23 @@ const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
 const toolsDir = path.join(root, "node_modules", "@rex0220", "print-craft-authoring-tools");
 const tools = JSON.parse(readFileSync(path.join(toolsDir, "package.json"), "utf8"));
 const outfile = path.join(dist, "server", "print-craft-mcp.cjs");
+
+// 資料（pcraft_docs）: guide/ と references/template/（写した元のコミットと sha256 を照合する。手で直した写しを埋め込まない）
+const refDir = path.join(root, "references", "template");
+const source = JSON.parse(readFileSync(path.join(refDir, "SOURCE.json"), "utf8"));
+const recorded = new Map(source.files.map((f) => [f.path, f.sha256]));
+const used = new Set();
+const sections = DOC_SECTIONS.map((d) => {
+  if (d.guide) return { key: d.key, title: d.title, kind: "guide", text: readFileSync(path.join(root, "guide", d.guide), "utf8") };
+  const data = readFileSync(path.join(refDir, d.ref));
+  const sha = createHash("sha256").update(data).digest("hex");
+  if (recorded.get(d.ref) !== sha) throw new Error(`references/template/${d.ref} が写したときと違う（scripts/sync-references.mjs で写し直す。手で直さない）`);
+  used.add(d.ref);
+  return { key: d.key, title: d.title, kind: "ref", text: data.toString("utf8") };
+});
+const unused = [...recorded.keys()].filter((p) => !used.has(p));
+if (unused.length) throw new Error(`写したが使っていない資料がある（docs-sections.mjs に足すか、sync-references.mjs から外す）: ${unused.join(", ")}`);
+const docs = { source: { repository: source.repository, commit: source.commit, short: source.short, dirty: source.dirty }, sections };
 
 rmSync(dist, { recursive: true, force: true });
 const result = await build({
@@ -36,6 +55,7 @@ const result = await build({
   },
   define: {
     __PCRAFT_MCP_VERSION__: JSON.stringify(pkg.version),
+    __PCRAFT_DOCS__: JSON.stringify(JSON.stringify(docs)),
     "import.meta.url": "__pcraft_import_meta_url"
   },
   tsconfig: path.join(root, "tsconfig.json"),
@@ -71,4 +91,4 @@ for (const f of ["moment-with-locales.min.js", "moment.json"]) copyFileSync(path
 const probe = spawnSync(process.execPath, ["-e", `const m = require(${JSON.stringify(outfile)}); if (typeof m.main !== "function") process.exit(2); console.log(m.VERSION)`], { encoding: "utf8" });
 if (probe.status !== 0 || probe.stdout.trim() !== pkg.version) throw new Error(`束ねたものが読み込めない（exit ${probe.status}）:\n${probe.stderr}`);
 
-console.log(`[build-mcp] dist/server/print-craft-mcp.cjs (${bundle.length.toLocaleString()} bytes; ${inputs.length} inputs; 版 ${pkg.version}; 中核 tools ${tools.version})`);
+console.log(`[build-mcp] dist/server/print-craft-mcp.cjs (${bundle.length.toLocaleString()} bytes; ${inputs.length} inputs; 版 ${pkg.version}; 中核 tools ${tools.version}; 資料 ${sections.length} 章、元 ${source.short}${source.dirty ? "+dirty" : ""})`);

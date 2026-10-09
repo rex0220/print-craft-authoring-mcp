@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { FIELDS_TEXT, SECRET, SKIP as skip, VERSION, ZIP, connect, connectClaudeCode, connectDesktop, makeWorkspace, saveInput, sc, settings } from "./helpers.mjs";
 
-const TOOLS = ["pcraft_status", "pcraft_workspace_status", "pcraft_save_settings", "pcraft_update_button", "pcraft_buttons", "pcraft_normalize", "pcraft_preview", "pcraft_fields", "pcraft_record"];
+const TOOLS = ["pcraft_docs", "pcraft_status", "pcraft_workspace_status", "pcraft_save_settings", "pcraft_update_button", "pcraft_buttons", "pcraft_normalize", "pcraft_preview", "pcraft_fields", "pcraft_record"];
 
 test("ツールの一覧と入力の厳しいスキーマ（additionalProperties: false。Claude Code では workspaceId が必須）。指示の 1 行目に版", { skip }, async () => {
   const root = makeWorkspace();
