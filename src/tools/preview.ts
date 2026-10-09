@@ -10,7 +10,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
-import { DEFAULT_CONTEXT_BASE_URL, InputError, WRITE_ROOTS, normalizeSettings, readFieldsFile, readJsonLimited, resolveRead, runPreview } from "../core.ts";
+import { DEFAULT_CONTEXT_BASE_URL, InputError, WRITE_ROOTS, normalizeSettings, readFieldsFile, readJsonLimited, resolveRead, runPreview, type PreviewResult } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { failure, ok, type Finding } from "../result.ts";
 import { isToolResult, prepare, workspaceIdSchema } from "./common.ts";
@@ -28,6 +28,19 @@ export function safeRenderError(e: string): string {
   if (m) return `HTML 設定 ${m[1]} 行目の${m[2].startsWith(" ${") ? " ${…} の評価" : "計算式の評価"}に失敗（誤りの文は値を含みうるので返さない）`;
   if (e.startsWith("ページ要素（class=\"rex0220-pcraft-page\"）が無い")) return e;
   return "式の評価に失敗（誤りの文は値を含みうるので返さない）";
+}
+
+/** 描画の想定外の誤り（例外の文はレコードの値を含みうるので、返さず、記録にも残さない） */
+const RENDER_FAILED = "帳票を描けなかった（誤りの文はレコードの値を含みうるので返さない）。pcraft_normalize で設定を確かめ、レコードのファイルを pcraft_record で取り直す。直らなければ利用者に印刷屋のプレビューで確かめてもらう";
+
+/** レコードのファイル（JSON）を読む。JSON として読めないときの文に中身の一部が入らないようにする */
+function readRecordJson(root: string, file: string): Record<string, unknown> {
+  try {
+    return readJsonLimited(file);
+  } catch (e) {
+    if (e instanceof InputError && /JSON として読めない/.test(e.message)) throw new InputError(`レコードのファイルを JSON として読めない: ${rel(root, file)}（中身は返さない）`);
+    throw e;
+  }
 }
 
 function recordFileFor(root: string, settingsFile: string, record: string): string {
@@ -75,16 +88,16 @@ export function registerPreview(server: McpServer, ctx: ServerContext): void {
           w.engine.setContext({ baseUrl: baseUrl ?? DEFAULT_CONTEXT_BASE_URL, appId: fields.appId });
           const checked = await normalizeSettings({ settingsText: f.text, settingsFile: f.relPath, fields, engine: w.engine, policy: w.policy, baseUrl });
           if (checked.findings.hasErrors) return failure("invalid", "NormalizeError", `設定にエラーがあるので帳票を描かない（pcraft_normalize で確かめる）: ${checked.summary}`, checked.findings.items as unknown as Finding[]);
-          const result = await runPreview({
-            settingsText: f.text,
-            settingsFile: f.relPath,
-            fields,
-            recordFile: readJsonLimited(recordFile),
-            engine: w.engine,
-            policy: w.policy,
-            button: input.button,
-            baseUrl
-          });
+          const recordJson = readRecordJson(w.root, recordFile);
+          let result: PreviewResult;
+          try {
+            result = await runPreview({ settingsText: f.text, settingsFile: f.relPath, fields, recordFile: recordJson, engine: w.engine, policy: w.policy, button: input.button, baseUrl });
+          } catch (e) {
+            // レコードの形の誤り（中核の決まった文）は invalid。それ以外は描画の想定外の誤りで、文を返さない（例: 明細の行の形が違うと、例外の文に値が入る）
+            if (e instanceof InputError) return fromError(e);
+            ctx.log(`pcraft_preview: 帳票を描けなかった（${e instanceof Error ? e.constructor.name : typeof e}。文はレコードの値を含みうるので出さない）`);
+            return failure("failed", "RenderError", RENDER_FAILED);
+          }
           const findings = result.findings.items as unknown as Finding[];
           if (result.findings.hasErrors) return failure("invalid", "NormalizeError", `設定にエラーがあるので帳票を書かない（pcraft_normalize で確かめる）: ${result.summary}`, findings);
           const outDir = previewDirFor(w.root, f.file);

@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "runtimeChecks": {
     "mcpVersion": "0.1.0",
-    "coreVersion": ">=1.3.0 <2.0.0",
+    "coreVersion": ">=1.3.1 <2.0.0",
     "docsRevision": "b93c0f0",
     "authoringApiVersions": [1, 2],
     "pluginVersion": { "min": 6 }
   },
   "informational": {
-    "cliVersion": ">=1.3.0 <2.0.0",
+    "cliVersion": ">=1.3.1 <2.0.0",
     "note": "印刷屋の版の上限は書かない（authoring API の版の判定は中核が行う。版を上げただけの印刷屋で print-craft MCP の公開を要しないように。tools 1.1.0 と同じ考え）。cliVersion は誰も実行のときに確かめない（テンプレートのバージョンアップ手順の目安）"
   }
 }

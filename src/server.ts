@@ -2,11 +2,12 @@
  * print-craft MCP（実装案 5 章）。MCP の SDK v2（@modelcontextprotocol/server。kSQL と同じ 2.0.0）の McpServer と serveStdio。
  *   - 出し分けと作業フォルダーは起動の引数（--surface claude-code | desktop、--roots / --workspace-dir）で決める。AI の引数では変えない
  *   - 処理はサーバーの中で共通の中核（@rex0220/print-craft-authoring-tools/core）を呼ぶ（別のプロセスを起動しない）
- *   - 標準出力は JSON-RPC だけ（中核や印刷屋の zip のコードの console.log は標準エラーへ回す）。秘密の値は応答・標準エラーに出さない
+ *   - 標準出力は JSON-RPC だけ（console の出力は標準エラーへ回し、印刷屋のエンジンを動かしている間は捨てる。console-gate.ts）。秘密の値とレコードの値は応答・標準エラーに出さない
  */
 import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio, StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { WorkspaceBinding, isUnset, parseArgs } from "./binding.ts";
+import { installConsoleGate } from "./console-gate.ts";
 import { createServerContext, type Env, type ServerContext } from "./context.ts";
 import { registerButtons } from "./tools/buttons.ts";
 import { registerDocs } from "./tools/docs.ts";
@@ -21,6 +22,7 @@ import { registerStatus } from "./tools/status.ts";
 import { registerUpdateButton } from "./tools/update-button.ts";
 import { registerWorkspaceFiles } from "./tools/workspace-files.ts";
 import { registerWorkspaceStatus } from "./tools/workspace-status.ts";
+import { setScrubRoots } from "./result.ts";
 import { VERSION, versionLine } from "./version.ts";
 
 export { VERSION };
@@ -64,13 +66,13 @@ export function createServer(ctx: ServerContext): McpServer {
 
 /** 起動（.mcpb の起動のファイルとプラグインの .mcp.json から。直接起動されたかで分けない＝ Desktop の Node で効かない。kSQL） */
 export async function main(argv: readonly string[] = process.argv.slice(2), env: Env = process.env): Promise<void> {
-  const toStderr = (...a: unknown[]): void => console.error(...a);
-  console.log = toStderr;
-  console.info = toStderr;
-  console.debug = toStderr;
   const log = (line: string): void => void process.stderr.write(`[print-craft-mcp] ${line}\n`);
+  installConsoleGate(log);
   const args = parseArgs(argv);
   const binding = new WorkspaceBinding(args, log);
+  // 誤りの文の中の作業フォルダーの絶対パスは、作業フォルダーからの相対に（result.ts）
+  const desktopRoot = args.surface === "desktop" ? binding.desktopWorkspace().root : undefined;
+  setScrubRoots(desktopRoot ? [desktopRoot] : binding.registered.roots);
   const ctx = createServerContext(args.surface, binding, env, log);
   const ws = args.surface === "desktop" ? (binding.desktopWorkspace().root ?? `未設定（${binding.desktopWorkspace().problem}）`) : `登録 ${binding.registered.roots.length} 件`;
   log(`${versionLine()} node=${process.version} surface=${args.surface} workspace=${ws} pluginZip=${isUnset(env.PCRAFT_PLUGIN_ZIP) ? "未設定" : "設定済み"}`);

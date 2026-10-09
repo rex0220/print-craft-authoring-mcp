@@ -3,6 +3,7 @@
  * 設定項目の値は起動時に一度だけ受け取り、中核に引数で渡す（中核は process.env を読まない）
  */
 import { isUnset, type Surface, type WorkspaceBinding } from "./binding.ts";
+import { quietly } from "./console-gate.ts";
 import { loadEngine, pluginZipPath, type Engine } from "./core.ts";
 
 export type Env = Readonly<Record<string, string | undefined>>;
@@ -13,9 +14,12 @@ export interface ServerContext {
   /** 設定項目の値（空と、置き換えられずに ${user_config.…} の字のまま届いたものは除いてある） */
   env: Env;
   log: (line: string) => void;
-  /** 印刷屋のエンジン（1 プロセスに 1 つ。失敗したら次の呼び出しでやり直す） */
+  /**
+   * 印刷屋のエンジン（中核が 1 プロセスに 1 つだけ読む。失敗したら次の呼び出しでやり直す）。読み込んだ後に別の zip（別の作業フォルダーの .env など）や
+   * 変わった zip を渡すと、中核が PluginZipError（zip-changed）で止める（前はここで最初のエンジンを返していた。Codex の B1 再レビュー MAJOR 2）
+   */
   engine(zip: string): Promise<Engine>;
-  /** 中核のエンジンを使うツールは 1 つずつ動かす（エンジンは 1 つで setContext を挟むので重ねない） */
+  /** 中核のエンジンを使うツールは 1 つずつ動かす（エンジンは 1 つで setContext を挟むので重ねない）。動かしている間の console の出力は捨てる */
   serial<T>(fn: () => Promise<T>): Promise<T>;
 }
 
@@ -27,7 +31,6 @@ export function sanitizeEnv(env: Env): Record<string, string> {
 }
 
 export function createServerContext(surface: Surface, binding: WorkspaceBinding, env: Env, log: (line: string) => void): ServerContext {
-  let engine: Promise<Engine> | undefined;
   let tail: Promise<unknown> = Promise.resolve();
   return {
     surface,
@@ -35,14 +38,11 @@ export function createServerContext(surface: Surface, binding: WorkspaceBinding,
     env: sanitizeEnv(env),
     log,
     engine(zip) {
-      engine ??= loadEngine({ pluginZip: zip }).catch((e: unknown) => {
-        engine = undefined;
-        throw e;
-      });
-      return engine;
+      return quietly(() => loadEngine({ pluginZip: zip }));
     },
     serial(fn) {
-      const run = tail.then(fn, fn);
+      const quiet = () => quietly(fn);
+      const run = tail.then(quiet, quiet);
       tail = run.catch(() => undefined);
       return run;
     }

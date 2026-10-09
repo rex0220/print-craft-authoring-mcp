@@ -82,7 +82,7 @@ export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): v
           for (const d of ["settings", "temp", "fields", "records"]) list[d] = namesUnder(root, d);
           const truncated = Object.values(list).some((l) => l.length > MAX_LIST);
           for (const d of Object.keys(list)) list[d] = list[d].slice(0, MAX_LIST);
-          return ok({ workspace: root, environmentsJson: false, files: list, inbox: namesUnder(root, INBOX, 1).length }, truncated ? { findings: [{ level: "info", rule: "truncated", message: `一覧を ${MAX_LIST} 件で打ち切った` }] } : {});
+          return ok({ workspace: { name: path.basename(root) }, environmentsJson: false, files: list, inbox: namesUnder(root, INBOX, 1).length }, truncated ? { findings: [{ level: "info", rule: "truncated", message: `一覧を ${MAX_LIST} 件で打ち切った` }] } : {});
         }
         if (input.app === undefined) throw new InputError("environments.json があるときは app（番号か apps の名前）が要る");
         const env = pickEnv(ws, input.env);
@@ -91,7 +91,7 @@ export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): v
         if (!dir) throw new InputError(`アプリ ${appId} のフォルダー（kintone/${env.host}/${appId}-…）が無い。先に pcraft_fields で項目定義を取る`);
         const l = listAppFolder(dir);
         return ok({
-          workspace: root,
+          workspace: { name: path.basename(root) },
           environmentsJson: true,
           env: { name: env.name, role: env.role, host: env.host },
           folder: rel(root, dir),

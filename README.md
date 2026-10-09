@@ -24,6 +24,8 @@ kintone の印刷屋プラグイン（rex0220 Print craft）の帳票の設定 J
 
 隣に `print-craft`（印刷屋の zip `dist/print-craft-plugin7.zip`。試験だけ）があること。
 
+中核は tools 1.3.1 以上（`compat.json` の `coreVersion`）。1.3.1 を npm に公開するまでは、隣の print-craft-authoring の `tools` で `npm pack` した tarball を `npm install --no-save <tgz>` で入れて試す（`package.json` と lockfile は 1.3.0 のまま。公開した後に 1.3.1 に上げる）。
+
 ```sh
 npm ci
 npm test                 # ビルド → 試験
@@ -68,4 +70,4 @@ mkdir -p ~/pcraft-b1-ws && cd ~/pcraft-b1-ws
 | 4 | 代表のレコードを選ぶ | `kintone_list_records`（形だけ、5 件）→ `pcraft_record` | |
 | 5 | 帳票を書いて保存 → preview | `pcraft_save_settings` `ok` → `pcraft_preview` | |
 | 6 | 同じ名前でもう一度保存 | `conflict`（ツールを呼んで返った結果を伝える。推し量らない） | |
-| 7 | `main.log` | `[print-craft-mcp] print-craft MCP 0.1.0 …` の行。秘密の値が無い | |
+| 7 | `main.log` | `[print-craft-mcp] print-craft MCP 0.1.0 …` の行。秘密の値、レコードの値（宛名など）、印刷屋のログ（`file name err`）、moment の警告（`Deprecation warning`）が無い（捨てたときは「console の出力を N 件捨てた」の行だけ） | |

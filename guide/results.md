@@ -7,15 +7,16 @@
 | status | 意味 | すること |
 | --- | --- | --- |
 | `ok` | できた。`findings` に警告・情報があることがある | 警告は消さずに利用者に伝える |
-| `invalid` | 設定の検査（normalize）のエラー、入力の誤り（項目定義のファイルが無い、JSON として読めない、ボタンの名前が無い など） | `findings` のエラーと `error.message` を読んで直す |
+| `invalid` | 設定の検査（normalize）のエラー、入力の誤り（項目定義のファイルが無い、JSON として読めない、ボタンの名前が無い、パスの形が違う（`./`・末尾の `/`・`//`）など） | `findings` のエラーと `error.message` を読んで直す |
+| `incompatible` | print-craft MCP と合わない（印刷屋の zip の版が対応外、authoring API の版、互換表） | `error.message` のとおり利用者に頼む（print-craft MCP の更新か、アプリに入れたものと同じ版の zip） |
 | `conflict` | 同じ名前のファイルがある（新しい設定の保存は上書きしない）、読んだ後にファイルが変わった（digest が違う）、別の保存が進行中 | 新しい設定なら別の名前に。既存のボタンを直すなら `pcraft_buttons` で読み直して `pcraft_update_button` |
 | `denied` | 断った（下の「断る場合」） | 利用者に伝える。回り道をしない（Bash や別のツールで書かない） |
-| `failed` | 印刷屋の zip が無い・読めない、kintone の誤り（HTTP の状態とエラーコード）、想定外の失敗 | `error.message` を利用者に伝える |
+| `failed` | 印刷屋の zip が無い・読めない・読み込んだものと違う（zip を変えたら再接続）、帳票を描けなかった（`RenderError`。誤りの文はレコードの値を含みうるので返らない）、kintone の誤り（HTTP の状態とエラーコード）、想定外の失敗 | `error.message` を利用者に伝える |
 
 ## 断る場合（denied）
 
 - 作業フォルダーの外、`.env` などの読まないファイル。パスは作業フォルダーからの相対パスだけ（絶対パス・ドライブ名・`~`・`\`・`..` は断る。区切りは `/`）
-- 作業フォルダーの外を指すフォルダー（symlink など）
+- 作業フォルダーの外を指すフォルダーと `environments.json`（symlink など。リンク切れも）
 - 登録していない作業フォルダー（Claude Code。登録したばかりなら `/mcp` で print-craft を再接続）
 - 書けない場所（設定は `settings/` `temp/` と、開発の環境のアプリのフォルダー `kintone/<ホスト名>/<番号>-<アプリ名>/` だけ）
 - 本番（`environments.json` の `role: production`）のアプリのフォルダーを変えること（本番のフォルダーは今の設定を見るためだけ。作るのも直すのも開発の環境）

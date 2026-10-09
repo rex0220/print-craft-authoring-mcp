@@ -50,6 +50,7 @@ export function checkRelPath(p: string, what = "パス"): void {
   if (path.isAbsolute(p) || path.win32.isAbsolute(p) || /^[A-Za-z]:/.test(p) || p.startsWith("~")) throw new PathError(`${what}は作業フォルダーからの相対パスで書く（絶対パス・ドライブ名・~ は使わない）: ${p}`);
   if (p.includes("\\")) throw new PathError(`${what}の区切りは / にする（\\ は使わない）: ${p}`);
   if (p.split("/").some((seg) => seg === "..")) throw new PathError(`${what}に .. は使わない: ${p}`);
+  if (p.split("/").some((seg) => seg === "" || seg === ".")) throw new InputError(`${what}はファイルの相対パスで書く（例 settings/a.json。先頭の ./、末尾の /、// は使わない）: ${p}`);
 }
 
 /** ツールの引数のパスをまとめて確かめる（undefined は飛ばす） */

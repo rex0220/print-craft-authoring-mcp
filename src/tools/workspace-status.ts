@@ -1,17 +1,27 @@
 /**
  * pcraft_workspace_status（作業フォルダーの診断。実装案 5.1 ③）: 作業フォルダーの照合は通す（未登録なら denied）が、互換表の判定は通さない。
- * environments.json の有無、環境ごとの role、未分類（role の無い）環境、印刷屋の zip の場所。読み取りだけ（13.3）
+ * environments.json の有無、環境ごとの role、未分類（role の無い）環境、印刷屋の zip（ファイル名、読めるか、版）。読み取りだけ（13.3）
  */
-import { existsSync } from "node:fs";
+import { lstatSync } from "node:fs";
 import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { WorkspaceError } from "../binding.ts";
-import { WORKSPACE_FILE, loadWorkspace } from "../core.ts";
+import { PathError, WORKSPACE_FILE, loadWorkspace } from "../core.ts";
 import type { ServerContext } from "../context.ts";
-import { failure, ok, unexpected } from "../result.ts";
+import { failure, ok, sanitizeMessage, unexpected } from "../result.ts";
 import { workspaceIdSchema } from "./common.ts";
 import { zipReport } from "./zip-report.ts";
+
+/** ファイルがあるか（symlink はリンクそのもの。リンク切れも「ある」） */
+const exists = (p: string): boolean => {
+  try {
+    lstatSync(p);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 export function registerWorkspaceStatus(server: McpServer, ctx: ServerContext): void {
   server.registerTool(
@@ -19,7 +29,7 @@ export function registerWorkspaceStatus(server: McpServer, ctx: ServerContext): 
     {
       title: "印刷屋の作業フォルダーの診断",
       description:
-        "印刷屋プラグイン（rex0220 Print craft）の作業フォルダーの診断: environments.json の有無、環境ごとの役割（development / production）、役割の無い環境、印刷屋の zip の場所。次にすること（next）を返す。状態は推し量らず、このツールで確かめる。読み取りだけ",
+        "印刷屋プラグイン（rex0220 Print craft）の作業フォルダーの診断: environments.json の有無、環境ごとの役割（development / production）、役割の無い環境、印刷屋の zip（ファイル名、読めるか、版）。次にすること（next）を返す。状態は推し量らず、このツールで確かめる。読み取りだけ",
       inputSchema: z.object({ workspaceId: workspaceIdSchema(ctx.surface) }).strict(),
       annotations: { readOnlyHint: true, openWorldHint: false }
     },
@@ -48,7 +58,8 @@ export function registerWorkspaceStatus(server: McpServer, ctx: ServerContext): 
             if (unclassified.length) next.push(`環境 ${unclassified.join("、")} に role が無い。利用者が ${WORKSPACE_FILE} に role（development か production）を書くまで、その環境のフォルダー（kintone/<ホスト名>/…）は変更できない`);
           }
         } catch (e) {
-          problem = (e as Error).message;
+          // 外を指す symlink・リンク切れは決まった文（外のパスや中身を返さない。Codex の B1 再レビュー BLOCKER 2）
+          problem = e instanceof PathError ? `${WORKSPACE_FILE} の実体が作業フォルダーの外を指しているか、リンク切れ（symlink など）。作業フォルダーの中の普通のファイルにする` : sanitizeMessage((e as Error).message);
           next.push(`${WORKSPACE_FILE} が読めない: ${problem}（利用者が直す。AI は書かない）`);
         }
         const zip = await zipReport(ctx, root);
@@ -57,7 +68,7 @@ export function registerWorkspaceStatus(server: McpServer, ctx: ServerContext): 
           ready: next.length === 0,
           next: next.length ? next : ["準備ができている"],
           workspace: { name: path.basename(root) },
-          environmentsJson: { exists: existsSync(path.join(root, WORKSPACE_FILE)), ...(environments ? { environments } : {}), ...(problem ? { problem } : {}) },
+          environmentsJson: { exists: exists(path.join(root, WORKSPACE_FILE)), ...(environments ? { environments } : {}), ...(problem ? { problem } : {}) },
           pluginZip: zip.report
         });
       } catch (e) {

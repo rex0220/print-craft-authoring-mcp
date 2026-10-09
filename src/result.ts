@@ -7,6 +7,7 @@
  * content の文字と structuredContent は同じ中身。秘密の値は入れない
  */
 import os from "node:os";
+import path from "node:path";
 
 export type Status = "ok" | "invalid" | "incompatible" | "conflict" | "denied" | "failed";
 
@@ -33,9 +34,10 @@ export function toResult(payload: Record<string, unknown>, isError = false): Too
 
 /** 上限を超えたら、上限 - 1 件と truncated の 1 件（合わせて上限の件数。Codex の B1 レビュー MINOR 2） */
 export function capFindings(findings: readonly Finding[]): Finding[] {
-  if (findings.length <= MAX_FINDINGS) return [...findings];
+  const safe = findings.map((f) => (typeof f.message === "string" ? { ...f, message: sanitizeMessage(f.message) } : f));
+  if (safe.length <= MAX_FINDINGS) return safe;
   const kept = MAX_FINDINGS - 1;
-  return [...findings.slice(0, kept), { level: "info", rule: "truncated", message: `findings を ${kept} 件で打ち切った（ほかに ${findings.length - kept} 件）` }];
+  return [...safe.slice(0, kept), { level: "info", rule: "truncated", message: `findings を ${kept} 件で打ち切った（ほかに ${safe.length - kept} 件）` }];
 }
 
 export function ok(result: Record<string, unknown>, opt: { findings?: readonly Finding[]; digest?: string } = {}): ToolResult {
@@ -48,8 +50,28 @@ export function scrubHome(message: string): string {
   return home && home.length > 1 ? message.split(home).join("~") : message;
 }
 
+let scrubRoots: string[] = [];
+
+/** 誤りの文から除く作業フォルダー（起動のときに登録済み・設定の作業フォルダーを渡す。長いものから置き換える） */
+export function setScrubRoots(roots: readonly string[]): void {
+  scrubRoots = [...new Set(roots)].filter((r) => r.length > 1).sort((a, b) => b.length - a.length);
+}
+
+/**
+ * JSON.parse の誤りの文（Node 20 から「Unexpected token 'x', "…" is not valid JSON」の形で中身の一部が入る）の中身を除く。
+ * 読んだファイル（レコード、設定）の値を返さない。位置（position / line / column）だけの文はそのまま（Codex の B1 再レビュー）
+ */
+const JSON_SNIPPET = /(?:Unexpected token '[\s\S]{1,2}', )?(?:\.\.\.)?"[\s\S]*? is not valid JSON/g;
+
+/** AI に返す文: JSON の中身の一部を除き、作業フォルダーの絶対パスを相対に、ホームのフォルダーを ~ に */
+export function sanitizeMessage(message: string): string {
+  let m = message.replace(JSON_SNIPPET, "JSON として読めない（中身は返さない）");
+  for (const r of scrubRoots) m = m.split(r + path.sep).join("").split(r).join("（作業フォルダー）");
+  return scrubHome(m);
+}
+
 export function failure(status: Exclude<Status, "ok">, code: string, message: string, findings: readonly Finding[] = []): ToolResult {
-  return toResult({ ok: false, status, error: { code, message: scrubHome(message) }, findings: capFindings(findings) }, true);
+  return toResult({ ok: false, status, error: { code, message: sanitizeMessage(message) }, findings: capFindings(findings) }, true);
 }
 
 /** 想定外の誤りを failed に（誤りの種類はクラスの名前。文は中核の決まった文。秘密の値を含まない） */
