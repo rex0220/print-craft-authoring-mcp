@@ -6,13 +6,14 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { FIELDS_TEXT, SECRET, SKIP as skip, VERSION, ZIP, connect, connectClaudeCode, connectDesktop, makeWorkspace, saveInput, sc, settings } from "./helpers.mjs";
+import { FIELDS_TEXT, SECRET, SKIP as skip, VERSION, ZIP, connEnv, connect, connectClaudeCode, connectDesktop, leakedTokens, makeConn, makeWorkspace, saveInput, sc, settings } from "./helpers.mjs";
 
 const TOOLS = ["pcraft_docs", "pcraft_status", "pcraft_workspace_status", "pcraft_save_settings", "pcraft_update_button", "pcraft_buttons", "pcraft_normalize", "pcraft_preview", "pcraft_fields", "pcraft_record", "pcraft_pull", "pcraft_files", "pcraft_take", "pcraft_edit", "pcraft_diff"];
 
-test("ツールの一覧と入力の厳しいスキーマ（additionalProperties: false。Claude Code では workspaceId が必須）。指示の 1 行目に版", { skip }, async () => {
+test("ツールの一覧と入力の厳しいスキーマ（additionalProperties: false。Claude Code では workspaceId が必須）。指示の 1 行目に版。pcraft_status の capabilities", { skip }, async () => {
   const root = makeWorkspace();
-  const s = await connectClaudeCode([root]);
+  const conn = makeConn();
+  const s = await connectClaudeCode([root], connEnv(conn.file));
   try {
     const { tools } = await s.client.listTools();
     assert.deepEqual(tools.map((t) => t.name), TOOLS);
@@ -31,11 +32,22 @@ test("ツールの一覧と入力の厳しいスキーマ（additionalProperties
     assert.deepEqual(st.result.workspace.names, [path.basename(root)]);
     assert.equal(st.result.pluginZip.source, "設定項目");
     assert.deepEqual([st.result.pluginZip.readable, st.result.pluginZip.compatible, st.result.pluginZip.pluginVersion, st.result.pluginZip.authoringApiVersion], [true, true, "7", 2], "zip を実際に読む");
-    assert.ok(!JSON.stringify(st).includes(root) && !JSON.stringify(st).includes(ZIP), "絶対パスを返さない（Codex の B1 レビュー MAJOR 3）");
+    assert.ok(!JSON.stringify(st).includes(root) && !JSON.stringify(st).includes(ZIP) && !JSON.stringify(st).includes(conn.file), "絶対パスを返さない（Codex の B1 レビュー MAJOR 3）");
     assert.equal(st.result.version, VERSION);
+    assert.deepEqual(st.result.capabilities, { authoring: { ready: true }, kintone: { ready: true, fileName: "ksql.config.json", profiles: 3 } });
   } finally {
     await s.close();
+    conn.cleanup();
     rmSync(root, { recursive: true, force: true });
+  }
+  // 接続のファイルが無ければ kintone は使えない（診断は ok、ready: false と理由の code。kintone を使わないツールは動く）
+  const s2 = await connectClaudeCode([root]);
+  try {
+    const st = sc(await s2.call("pcraft_status", {}));
+    assert.deepEqual([st.status, st.result.ready, st.result.capabilities.authoring.ready, st.result.capabilities.kintone], ["ok", false, true, { ready: false, code: "not-configured" }]);
+    assert.match(st.result.next.join("\n"), /kintone を使うツール（pcraft_fields など）には、\/config で print-craft の「kintone の接続のファイル」/);
+  } finally {
+    await s2.close();
   }
 });
 
@@ -68,28 +80,39 @@ test("保存は ok（digest は確定したファイル。settings/ が無くて
   }
 });
 
-test("denied（作業フォルダーの外、未登録の workspaceId、本番のフォルダー、ダウンロードの名前）", { skip }, async () => {
+test("denied（作業フォルダーの外、未登録の workspaceId、接続のファイルに無い profile のフォルダー、接続のファイルが無いときの kintone/、ダウンロードの名前）", { skip }, async () => {
   const root = makeWorkspace();
   const other = makeWorkspace("pcraft-mcp-other-");
-  writeFileSync(path.join(root, "environments.json"), JSON.stringify({ environments: { prod: { baseUrl: "https://x.cybozu.com", role: "production" } } }));
-  const prodDir = path.join(root, "kintone", "x.cybozu.com", "3740-見積書");
-  mkdirSync(prodDir, { recursive: true });
-  writeFileSync(path.join(prodDir, "fields.json"), FIELDS_TEXT);
-  const s = await connectClaudeCode([root]);
+  const conn = makeConn();
+  const stageDir = path.join(root, "kintone", "stage", "3740-見積書");
+  mkdirSync(stageDir, { recursive: true });
+  writeFileSync(path.join(stageDir, "fields.json"), FIELDS_TEXT);
+  const s = await connectClaudeCode([root], connEnv(conn.file));
   try {
     const outside = await s.call("pcraft_save_settings", saveInput(root, "../x.json"));
     assert.deepEqual([sc(outside).status, sc(outside).error.code], ["denied", "PathError"]);
     const unregistered = await s.call("pcraft_save_settings", saveInput(other, "settings/a.json"));
     assert.deepEqual([sc(unregistered).status, sc(unregistered).error.code], ["denied", "WorkspaceError"]);
     assert.match(sc(unregistered).error.message, /登録済みの作業フォルダーでない/, "フックが再接続の案内に置き換える文");
-    const prod = await s.call("pcraft_save_settings", { workspaceId: root, path: "kintone/x.cybozu.com/3740-見積書/新しい帳票.json", content: settings(), expectedAbsent: true });
-    assert.deepEqual([sc(prod).status, sc(prod).error.code], ["denied", "PermissionError"]);
-    assert.match(sc(prod).error.message, /本番（role: production）/);
+    const stage = await s.call("pcraft_save_settings", { workspaceId: root, path: "kintone/stage/3740-見積書/新しい帳票.json", content: settings(), expectedAbsent: true });
+    assert.deepEqual([sc(stage).status, sc(stage).error.code], ["denied", "PermissionError"]);
+    assert.match(sc(stage).error.message, /profile「stage」は接続のファイル（ksql\.config\.json）に無い/);
     const snap = await s.call("pcraft_save_settings", saveInput(root, "settings/rex0220-print-craft-app3740-20261005-125115.json"));
     assert.equal(sc(snap).status, "denied");
-    for (const p of ["x.json", "settings/a.json", "kintone/x.cybozu.com/3740-見積書/新しい帳票.json"]) assert.ok(!existsSync(path.join(root, p)) && !existsSync(path.join(other, p)), p);
+    for (const p of ["x.json", "settings/a.json", "kintone/stage/3740-見積書/新しい帳票.json"]) assert.ok(!existsSync(path.join(root, p)) && !existsSync(path.join(other, p)), p);
   } finally {
     await s.close();
+  }
+  // 接続のファイルが無いときは kintone/ の下をいつも変えない（古い形のフォルダーを取り違えない。15.7）
+  const s2 = await connectClaudeCode([root]);
+  try {
+    const noConn = await s2.call("pcraft_save_settings", { workspaceId: root, path: "kintone/dev/3740-見積書/新しい帳票.json", content: settings(), fields: "fields/3740.json", expectedAbsent: true });
+    assert.deepEqual([sc(noConn).status, sc(noConn).error.code], ["denied", "PermissionError"]);
+    assert.match(sc(noConn).error.message, /kintone の接続のファイルがあるときだけ/);
+    assert.ok(!existsSync(path.join(root, "kintone", "dev")));
+  } finally {
+    await s2.close();
+    conn.cleanup();
     rmSync(root, { recursive: true, force: true });
     rmSync(other, { recursive: true, force: true });
   }
@@ -157,8 +180,9 @@ test("設定項目が置き換えられずに ${user_config.…} の字のまま
 test("desktop: 作業フォルダーが無ければ最後の 1 段だけ作る（\" と ~/ も）。workspaceId は省略できる。違えば denied。すぐ上が無ければ作らない", { skip }, async () => {
   const parent = realpathSync(mkdtempSync(path.join(os.tmpdir(), "pcraft-mcp-desk-")));
   const fresh = path.join(parent, "workspace");
+  const conn = makeConn();
   try {
-    const s = await connectDesktop(`"${fresh}"`);
+    const s = await connectDesktop(`"${fresh}"`, connEnv(conn.file));
     try {
       assert.ok(existsSync(fresh));
       const st = sc(await s.call("pcraft_status", {}));
@@ -198,21 +222,25 @@ test("desktop: 作業フォルダーが無ければ最後の 1 段だけ作る�
       await s3.close();
     }
   } finally {
+    conn.cleanup();
     rmSync(parent, { recursive: true, force: true });
   }
 });
 
-test("秘密の値（環境変数の API トークン）を応答・標準エラーに出さない", { skip }, async () => {
+test("秘密の値（接続のファイルのトークン、環境変数の API トークン）を応答・標準エラーに出さない", { skip }, async () => {
   const root = makeWorkspace();
-  const s = await connectClaudeCode([root]);
+  const conn = makeConn();
+  const s = await connectClaudeCode([root], connEnv(conn.file));
   try {
     await s.call("pcraft_status", {});
     await s.call("pcraft_workspace_status", { workspaceId: root });
     await s.call("pcraft_save_settings", saveInput(root, "settings/a.json"));
     await s.call("pcraft_save_settings", saveInput(root, "../b.json"));
     assert.ok(!s.output().includes(SECRET));
+    assert.deepEqual(leakedTokens(s.output()), []);
   } finally {
     await s.close();
+    conn.cleanup();
     rmSync(root, { recursive: true, force: true });
   }
 });

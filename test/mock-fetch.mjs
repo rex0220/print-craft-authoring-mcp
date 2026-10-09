@@ -1,6 +1,8 @@
 // 試験のときだけ、サーバーのプロセスに Node の --import で読み込ませる kintone の偽物（本体のコードには試験の仕掛けを入れない）。
 // globalThis.fetch を差し替え、x.cybozu.com / dev-x.cybozu.com のアプリ 3740 / 101 に決まった応答を返す。
-// 送られた要求（メソッド、URL、認証のヘッダーがあるか）を PCRAFT_TEST_FETCH_LOG のファイルに 1 行ずつ書く（ヘッダーの値は書かない）
+// 送られた要求（メソッド、URL、認証のヘッダーがあるか、その値の sha256 の先頭 16 文字）を PCRAFT_TEST_FETCH_LOG のファイルに 1 行ずつ書く
+// （ヘッダーの値そのものは書かない。アプリごとに正しいトークンを送ったかを digest で確かめる。実装案 15.14）
+import { createHash } from "node:crypto";
 import { appendFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,7 +24,13 @@ globalThis.fetch = async (input, init = {}) => {
   const url = new URL(String(input));
   const headers = init.headers ?? {};
   const hasToken = Object.keys(headers).some((k) => /^x-cybozu-(api-token|authorization)$/i.test(k));
-  if (LOG) appendFileSync(LOG, `${JSON.stringify({ method: init.method ?? "GET", host: url.host, path: url.pathname, query: Object.fromEntries(url.searchParams), hasToken })}\n`);
+  const hashOf = (re) => {
+    const k = Object.keys(headers).find((h) => re.test(h));
+    return k ? createHash("sha256").update(String(headers[k])).digest("hex").slice(0, 16) : null;
+  };
+  const token = hashOf(/^x-cybozu-api-token$/i);
+  const auth = hashOf(/^x-cybozu-authorization$/i);
+  if (LOG) appendFileSync(LOG, `${JSON.stringify({ method: init.method ?? "GET", host: url.host, path: url.pathname, query: Object.fromEntries(url.searchParams), hasToken, token, auth })}\n`);
   if (!HOSTS.has(url.host)) return notFound();
   if (!hasToken) return json(401, { code: "CB_AU01", id: "x", message: "SERVER-SECRET-MESSAGE ログインしてください" });
   const m = url.pathname.match(/^\/k\/(?:guest\/(\d+)\/)?v1\/(.+)\.json$/);

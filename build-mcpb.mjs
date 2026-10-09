@@ -1,7 +1,7 @@
 // 束ねた print-craft MCP（dist/）を Claude Desktop の .mcpb にする（実装案 8.3。試作 0-3b / 0-4 と kSQL の build-mcpb.mjs を元にした。無圧縮の zip を自分で書く）。
 //   - manifest は package.json から（名前・版）。ツールの一覧は束ねた本体の tools/list と同じ（scripts/mcpb-verify.mjs が照合する）
-//   - 設定項目: 作業フォルダー（directory、必須）、印刷屋の zip（file、必須）、kintone の URL と API トークン（任意。トークンは sensitive で env）
-//   - 秘密の値は引数でなく環境変数で渡す（mcp_config.env。試作 0-4 で、Desktop の設定画面で平文にならず、子のプロセスに届くことを確かめた）
+//   - 設定項目: 作業フォルダー（directory、必須）、印刷屋の zip（file、必須）、kintone の接続のファイル（file、任意・強く勧める。kSQL の ksql.config.json と同じ形。実装案 15.4）
+//   - 設定の値は引数でなく環境変数で渡す（mcp_config.env。試作 0-4 で、子のプロセスに届くことを確かめた）。トークンは接続のファイルに書く（設定項目に秘密の値は無い）
 // 使い方: node build-mcp.mjs && node build-mcpb.mjs  → dist-mcpb/print-craft.mcpb
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -17,7 +17,7 @@ const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 export const MANIFEST_TOOLS = [
   ["pcraft_docs", "印刷屋の帳票づくりの手順と資料（最初に呼ぶ）"],
   ["pcraft_status", "環境の診断（作業フォルダー、印刷屋の zip）"],
-  ["pcraft_workspace_status", "作業フォルダーの診断（environments.json と役割）"],
+  ["pcraft_workspace_status", "作業フォルダーの診断（kintone の接続とアプリのフォルダー）"],
   ["pcraft_save_settings", "新しい設定を検査して保存（上書きしない）"],
   ["pcraft_update_button", "既存の設定のボタン 1 つを差し替え"],
   ["pcraft_buttons", "設定のボタンの一覧と中身"],
@@ -50,8 +50,7 @@ export const manifest = {
       args: ["${__dirname}/server/index.cjs", "--surface", "desktop", "--workspace-dir", "${user_config.workspaceDir}"],
       env: {
         PCRAFT_PLUGIN_ZIP: "${user_config.pluginZip}",
-        KINTONE_BASE_URL: "${user_config.kintoneBaseUrl}",
-        KINTONE_API_TOKEN: "${user_config.kintoneApiToken}"
+        PCRAFT_KINTONE_CONFIG: "${user_config.kintoneConfig}"
       }
     }
   },
@@ -76,18 +75,11 @@ export const manifest = {
       description: "アプリに入れた印刷屋プラグインの zip（配布元から入手したもの。同じ版）",
       required: true
     },
-    kintoneBaseUrl: {
-      type: "string",
-      title: "kintone の URL",
-      description: "https://<サブドメイン>.cybozu.com",
-      required: true
-    },
-    kintoneApiToken: {
-      type: "string",
-      title: "kintone の API トークン",
-      description: "帳票を作るアプリの、閲覧だけの API トークン（チャットには書かない）",
-      sensitive: true,
-      required: true
+    kintoneConfig: {
+      type: "file",
+      title: "kintone の接続のファイル",
+      description: "kSQL の ksql.config.json と同じ形のファイル（接続先と、アプリごとの閲覧だけの API トークン。作業フォルダーの外に置く。kSQL と同じファイルでもよい）。無ければ kintone を使うツールは使えない",
+      required: false
     }
   }
 };

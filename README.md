@@ -1,6 +1,6 @@
 # print-craft-authoring-mcp（開発中・未公開）
 
-kintone の印刷屋プラグイン（rex0220 Print craft）の帳票の設定 JSON を、検査（normalize）を通して作業フォルダーに保存・確認する **print-craft MCP**（Claude Code のプラグインと Claude Desktop の `.mcpb`）。中核は npm の [`@rex0220/print-craft-authoring-tools/core`](https://www.npmjs.com/package/@rex0220/print-craft-authoring-tools)。設計は [docs/プラグイン化の実装案.md](docs/プラグイン化の実装案.md)。
+kintone の印刷屋プラグイン（rex0220 Print craft）の帳票の設定 JSON を、検査（normalize）を通して作業フォルダーに保存・確認する **print-craft MCP**（Claude Code のプラグインと Claude Desktop の `.mcpb`）。中核は npm の [`@rex0220/print-craft-authoring-tools/core`](https://www.npmjs.com/package/@rex0220/print-craft-authoring-tools)。設計は [docs/プラグイン化の実装案.md](docs/プラグイン化の実装案.md)（kintone の接続は 15 章）。
 
 今は段階 B1（print-craft MCP の本体）。プラグインのスキルとフックの仕上げは B2、`.mcpb` のリリースは B3。
 
@@ -20,24 +20,76 @@ kintone の印刷屋プラグイン（rex0220 Print craft）の帳票の設定 J
 
 ツール: `pcraft_docs`、`pcraft_status`、`pcraft_workspace_status`、`pcraft_save_settings`、`pcraft_update_button`、`pcraft_buttons`、`pcraft_normalize`、`pcraft_preview`、`pcraft_fields`、`pcraft_record`、`pcraft_pull`、`pcraft_files`、`pcraft_take`、`pcraft_edit`、`pcraft_diff`（Claude Code と Desktop）、`kintone_get_app`、`kintone_list_records`（Desktop だけ。Claude Code では公式の kintone MCP）。
 
+## 設定項目
+
+| | Desktop（拡張機能の設定） | Claude Code（`/config` の print-craft） |
+| --- | --- | --- |
+| 作業フォルダー | 「作業フォルダー」（必須。選ぶ画面で） | 「印刷屋の作業フォルダー」（初めて使うときに確認の画面から足す） |
+| 印刷屋プラグインの zip | 「印刷屋プラグインの zip」（必須。アプリに入れたものと同じ版） | 「印刷屋プラグインの zip」（絶対パス。空なら作業フォルダーの `.env` の `PCRAFT_PLUGIN_ZIP`） |
+| kintone の接続 | 「kintone の接続のファイル」（任意・強く勧める） | 「kintone の接続のファイル」（絶対パス。任意・強く勧める） |
+
+kintone の URL・API トークン・ログイン名・パスワードの設定項目はない（接続のファイルに書く）。接続のファイルが無くても、`settings/` などでの保存・検査・preview は動く（kintone から取るツールだけが使えない）。設定を変えたら Claude Code は `/mcp` で print-craft を再接続、Desktop は終了して起動し直す。
+
+## kintone の接続のファイル
+
+kSQL の `ksql.config.json` と同じ形のファイル。**kSQL のファイルをそのまま指しても、別のファイルでもよい**。print-craft が読むのは `defaultProfile` と、`profiles` の各 profile の `baseUrl`、`guestSpaceId`、`auth`（`token` / `userpass` / `auto`）、`username`、`password`、`passwordEnv`、`tokenMap` だけ（ほかのキーは読まずに通す）。
+
+```json
+{
+  "defaultProfile": "dev",
+  "profiles": {
+    "dev": { "baseUrl": "https://dev-example.cybozu.com", "tokenMap": { "APP101": "env:PCRAFT_TOKEN_APP101", "APP102": "<閲覧だけの API トークン>" } },
+    "prod": { "baseUrl": "https://example.cybozu.com", "tokenMap": { "APP3740": "env:PCRAFT_TOKEN_APP3740" } },
+    "guest15": { "baseUrl": "https://example.cybozu.com", "guestSpaceId": 15, "tokenMap": { "APP300": "env:PCRAFT_TOKEN_APP300" } }
+  }
+}
+```
+
+- **作業フォルダーの外に置く**（作業フォルダーの中・中を指す symlink は使わない）。トークンかパスワードを直接書くなら `chmod 600`
+- **アプリごとの閲覧だけの API トークンを強く勧める**。kSQL で書き込みにも使うトークンを print-craft と共有しない（下の「受け入れた危険」）
+- profile の選び方: ツールの `profile`、無ければ `defaultProfile`、無ければ `dev`（kSQL と同じ）。ゲストスペースは profile の `guestSpaceId`（1 つの profile は 1 つのスペース。通常のスペースとゲストスペースの同じ番号のアプリは profile を分ける）
+- アプリのフォルダーは作業フォルダーの `kintone/<profile>/<アプリ ID>-<アプリ名>/`（アプリ名は kintone から取る）。中の印 `.pcraft-app.json`（profile、接続先、ゲストスペース、アプリ ID）が今の接続と合わないフォルダーは使わない。profile の接続先を変えたら、古いフォルダーの名前を変えて退け、`pcraft_fields` か `pcraft_pull` で作り直す
+- 本番のアプリも同じに扱う（読み取りだけにする守りは無い。tools 1.x の `environments.json` の `role` はやめた）。print-craft が kintone に送るのは GET だけ
+- 状態は `pcraft_workspace_status`（profile ごとの接続先、認証の種類、アプリごとのトークンが使えるか。秘密の値と環境変数の名前は返さない）
+
+kSQL との違い（print-craft の方が厳しい。同じファイルを共有するときは、print-craft が使う profile をこの決まりに合わせる）:
+
+| | kSQL | print-craft |
+| --- | --- | --- |
+| kSQL の環境変数の上書き（`KSQL_BASE_URL`、`KSQL_TOKEN`、`KSQL_TOKEN_MAP`、`KSQL_USERNAME`、`KSQL_PASSWORD`、`KSQL_AUTH`、`KSQL_PROFILE`、`KSQL_GUEST_SPACE_ID`） | 読む | 読まない（読む環境変数は、ファイルが名前を書いた `env:` と `passwordEnv` だけ） |
+| token のときの `env:` | `tokenMap` のすべてを先に解決（使わないアプリの変数が無くても止まる） | 対象のアプリのトークンだけ |
+| `env:` の値・`username`・`password` が空白だけ | 受け付ける | 無いとみなす |
+| `tokenMap` のキー `APP001` | `APP001` のまま（`APP1` とは別） | 誤り（`APP1` と書く） |
+| `tokenMap` の値が文字列でない | 文字列にして使う | 誤り |
+| `APP1` と `app1` のようにそろえると重なるキー | 後のものが勝つ | 誤り |
+| profile の名前（英数字と `-` `_` の 40 文字まで）・`baseUrl`（`https://*.cybozu.com` / `*.kintone.com` / `*.cybozu.cn`）・`guestSpaceId`・`auth`・`tokenMap` の形 | ほとんど検査しない | 検査し、誤りの profile は使わない（ほかの profile は使える） |
+| 接続のファイルが無い | 空の設定として動く | kintone を使うツールは使えない |
+| ゲストスペースの指定 | profile の値（`KSQL_GUEST_SPACE_ID` で上書き） | profile の値だけ |
+
+**受け入れた危険**: 作業フォルダーの外に置くのは誤操作の防止で、Claude Code の AI からの秘密の隔離ではない。Claude Code の AI は Read / Bash で接続のファイルも環境変数（`env:` の参照先）も読める（作業フォルダーの外を読むときは許可の確認が出る。許可の確認を外した使い方では出ない）。読まれたトークンは print-craft の外でも使えるので、書き込みもできるトークンは書き込みに使われうる。だから閲覧だけのトークンを使う。Desktop で print-craft MCP だけを有効にしていれば、print-craft MCP を通して接続のファイルや環境変数を読む手段は無い（ほかのファイル・shell の MCP を同じ Desktop で有効にしていれば、Claude Code と同じ危険がある）。
+
+**環境変数（`env:`、`passwordEnv`）**: print-craft MCP の環境変数は起動のときに決まる。変えたら Claude Code は `/mcp` で再接続、Desktop は起動し直す（接続のファイルの書き換えは再接続なしで効く）。Desktop から起動する print-craft MCP には、シェルの設定（`~/.zshrc` など）の環境変数は届かない。Desktop ではトークンを接続のファイルに直接書く（`chmod 600`）のが確実。`env:` を使うなら `pcraft_workspace_status` の `tokenApps` の `ready` で使えるかを確かめる。
+
+**tools 1.x の `environments.json` から移す**: 接続のファイルを書いて設定する → 古いアプリのフォルダー（`kintone/<ホスト名>/…`）の名前を変えて退け、`pcraft_fields`（か `pcraft_pull`）で `kintone/<profile>/…` を作る → ダウンロード / pull のファイルは `inbox/` に置いて `pcraft_take`、`-edit.json` と新しい帳票は手で新しいフォルダーへ移す → `environments.json` を消す（残っていて接続のファイルが無いと、kintone のツールとアプリのフォルダーは止まる）。
+
 ## 作り方と試験
 
 隣に `print-craft`（印刷屋の zip `dist/print-craft-plugin7.zip`。試験だけ）があること。
 
-中核は npm の `@rex0220/print-craft-authoring-tools` 1.3.1（lockfile で固定。`compat.json` の `coreVersion` は 1.3.1 以上）。公開前の中核で試すときは、隣の print-craft-authoring の `tools` で `npm pack` した tarball を `npm install --no-save <tgz>` で入れる（`package.json` と lockfile は変えない）。
+中核は npm の `@rex0220/print-craft-authoring-tools` 2.0.0（lockfile で固定。`compat.json` の `coreVersion` は `>=2.0.0 <3.0.0`、`coreApiVersion` は 2）。公開前の中核で試すときは、隣の print-craft-authoring の `tools` で `npm pack` した tarball を `npm install --no-save <tgz>` で入れる（`package.json` と lockfile は変えない）。
 
 ```sh
 npm ci
 npm test                 # ビルド → 試験
 npm run verify:mcpb      # ビルド → .mcpb → 検査
-CLAUDE=~/.vscode/extensions/anthropic.claude-code-2.1.292-darwin-arm64/resources/native-binary/claude
+CLAUDE=~/.vscode/extensions/anthropic.claude-code-2.1.295-darwin-arm64/resources/native-binary/claude
 "$CLAUDE" plugin validate . && "$CLAUDE" plugin test .
 node scripts/sync-references.mjs   # テンプレートの資料を写し直す（compat.json の docsRevision も合わせる）
 ```
 
 ## 手で確かめること（B1）
 
-試作（`print-craft-proto`）は外しておく（同じ表示名・ツール名で紛らわしい）。試験用の作業フォルダーで試す（テンプレートのフォルダーでは試さない）。
+試作（`print-craft-proto`）は外しておく（同じ表示名・ツール名で紛らわしい）。試験用の作業フォルダーで試す（テンプレートのフォルダーでは試さない）。接続のファイルは利用者がエディターで書く（作業フォルダーの外。閲覧だけのトークン。チャットに貼らない）。例: `~/pcraft-b1-conn/ksql.config.json` に、試験用のアプリの profile `dev`。
 
 ### Claude Code（`--plugin-dir`）
 
@@ -49,14 +101,16 @@ mkdir -p ~/pcraft-b1-ws && cd ~/pcraft-b1-ws
 
 | # | すること | 期待 | 結果 |
 | --- | --- | --- | --- |
-| 1 | `/config` で print-craft の「印刷屋プラグインの zip」（絶対パス）と「kintone の URL」を入れる。API トークンは秘密の設定項目なので `--plugin-dir` では `/config` に出ない。作業フォルダーの `.env` に `KINTONE_API_TOKEN=…`（閲覧だけ。試験用のアプリ）を利用者がエディターで書く（チャットに貼らない）。`/mcp` で再接続 | `/mcp` に print-craft とツール 15 | |
+| 1 | `/config` で print-craft の「印刷屋プラグインの zip」と「kintone の接続のファイル」（どちらも絶対パス）を入れて、`/mcp` で再接続 | `/mcp` に print-craft とツール 15 | |
 | 2 | 「印刷屋で見積書の帳票を作りたい」 | `pcraft_docs` が呼ばれ、目次に版と作業の順 | |
-| 3 | （続き）アプリの番号を伝える | `pcraft_status` → 作業フォルダーの登録の確認 → 再接続 → `pcraft_fields` で項目の要約 | |
-| 4 | （続き）代表のレコードを決める | `pcraft_record` で形だけ（値は出ない） | |
-| 5 | （続き）帳票を書いて保存 | `pcraft_save_settings` が `ok`、警告を伝える | |
-| 6 | （続き）preview | `pcraft_preview` が `out/` に書く。Chrome で開く | |
-| 7 | 「settings/x.json に Write で直接書いて」 | フックが拒否 | |
-| 8 | 「同じ名前でもう一度保存して」 | `conflict`（ツールを呼んで返った結果を伝える） | |
+| 3 | （続き）アプリの番号を伝える | `pcraft_status`（`capabilities.kintone.ready: true`）→ 作業フォルダーの登録の確認 → 再接続 → `pcraft_fields` で項目の要約。`kintone/dev/<番号>-<アプリ名>/fields.json` と印 | |
+| 4 | 「作業フォルダーの診断を見せて」 | `pcraft_workspace_status` に profile、トークンが使えるか、アプリのフォルダー（`ok`）。トークンと環境変数の名前は出ない | |
+| 5 | （続き）代表のレコードを決める | `pcraft_record` で形だけ（値は出ない）。アプリのフォルダーの `records/` | |
+| 6 | （続き）帳票を書いて保存 | `pcraft_save_settings` がアプリのフォルダーに `ok`（`trustedOrigin` が接続先のホスト）、警告を伝える | |
+| 7 | （続き）preview | `pcraft_preview` がアプリのフォルダーの `out/` に書く。Chrome で開く | |
+| 8 | 「settings/x.json に Write で直接書いて」 | フックが拒否 | |
+| 9 | 「同じ名前でもう一度保存して」 | `conflict`（ツールを呼んで返った結果を伝える） | |
+| 10 | 接続のファイルの dev の `baseUrl` を別のサブドメインに書き換えて `pcraft_fields` | `conflict`（`app-identity-conflict`）。kintone に送らない。元に戻す | |
 
 ### Desktop（`.mcpb`）
 
@@ -64,10 +118,11 @@ mkdir -p ~/pcraft-b1-ws && cd ~/pcraft-b1-ws
 
 | # | すること | 期待 | 結果 |
 | --- | --- | --- | --- |
-| 1 | 設定項目（入れたときの画面か、設定 → 拡張機能 → 印刷屋 設定オーサリング（Print craft）の設定）: 作業フォルダー（選ぶ画面で）、zip、kintone の URL・API トークン（閲覧だけ。試験用のアプリ） | 設定画面でトークンが平文で見えない | |
+| 1 | 設定項目（入れたときの画面か、設定 → 拡張機能 → 印刷屋 設定オーサリング（Print craft）の設定）: 作業フォルダー（選ぶ画面で）、zip、kintone の接続のファイル（選ぶ画面で） | 設定に秘密の値の項目が無い | |
 | 2 | 「印刷屋で見積書の帳票を作りたい」 | `pcraft_docs` → `pcraft_status`（版 0.1.0、`ready: true`） | |
-| 3 | アプリの番号か URL を伝える | `kintone_get_app` で名前、`pcraft_fields` で要約 | |
+| 3 | アプリの番号か URL を伝える | `kintone_get_app` で名前（profile と接続先）、`pcraft_fields` で要約 | |
 | 4 | 代表のレコードを選ぶ | `kintone_list_records`（形だけ、5 件）→ `pcraft_record` | |
 | 5 | 帳票を書いて保存 → preview | `pcraft_save_settings` `ok` → `pcraft_preview` | |
 | 6 | 同じ名前でもう一度保存 | `conflict`（ツールを呼んで返った結果を伝える。推し量らない） | |
-| 7 | `main.log` | `[print-craft-mcp] print-craft MCP 0.1.0 …` の行。秘密の値、レコードの値（宛名など）、印刷屋のログ（`file name err`）、moment の警告（`Deprecation warning`）が無い（捨てたときは「console の出力を N 件捨てた」の行だけ） | |
+| 7 | `env:` のトークンの profile（シェルの設定だけに変数を書いた）で `pcraft_workspace_status` | `tokenApps` の `ready: false`（Desktop にシェルの環境変数は届かない）。`pcraft_fields` は `env-missing` | |
+| 8 | `main.log` | `[print-craft-mcp] print-craft MCP 0.1.0 …` の行。秘密の値、レコードの値（宛名など）、印刷屋のログ（`file name err`）、moment の警告（`Deprecation warning`）が無い（捨てたときは「console の出力を N 件捨てた」の行だけ） | |

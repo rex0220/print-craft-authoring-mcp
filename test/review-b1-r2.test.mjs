@@ -1,6 +1,7 @@
 // Codex の B1 再レビュー（work-link/codex-review-print-craft-b1-r2-2026-10-09.md）の指摘の試験:
 //   BLOCKER 1 preview でレコードの値を標準エラー・応答に出さない（$fname の評価の失敗、moment の警告、描画の想定外の例外、読めない JSON）
-//   BLOCKER 2 environments.json が外への symlink / MAJOR 1 zip の誤りの種類 / MAJOR 2 作業フォルダーごとの別の zip /
+//   BLOCKER 2 設定のファイルを作業フォルダーの中・外への symlink から読まない（tools 2.0.0 からは kintone の接続のファイル。実装案 15.3）/
+//   MAJOR 1 zip の誤りの種類 / MAJOR 2 作業フォルダーごとの別の zip /
 //   MINOR 1 パスの形 / pcraft_files の絶対パス / 足りなかった試験（kintone/・out/・settings/ などの symlink、pull の伏せ字）
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -9,7 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as core from "@rex0220/print-craft-authoring-tools/core";
-import { FIELDS_TEXT, SETTINGS_TEXT, SKIP as skip, ZIP, connectClaudeCode, makeWorkspace, saveInput, sc } from "./helpers.mjs";
+import { FIELDS_TEXT, SETTINGS_TEXT, SKIP as skip, ZIP, connEnv, connectClaudeCode, makeConn, makeWorkspace, saveInput, sc } from "./helpers.mjs";
 import { makePluginZip, stubInnerEntries } from "./zip-stub.mjs";
 
 const RECORD_TEXT = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "record-3740-3.json"), "utf8");
@@ -82,44 +83,50 @@ test("BLOCKER 1: 描画の想定外の例外（明細の行の形が違うと例
   }
 });
 
-test("BLOCKER 2: environments.json が外への symlink なら読まない（診断は決まった文、ほかのツールは denied。外の中身を返さない）。中への symlink は読む", { skip }, async (t) => {
+test("BLOCKER 2（15.3）: kintone の接続のファイルは作業フォルダーの外だけ（中のファイル、中の symlink、中を指す外の symlink、別の登録済みの作業フォルダーの中は inside-workspace）。environments.json は外への symlink でも中身を読まない", { skip }, async (t) => {
   const root = makeWorkspace();
+  const other = makeWorkspace("pcraft-mcp-other-");
   const out = tmpRoot();
-  writeFileSync(path.join(out, "environments.json"), JSON.stringify({ default: SECRET, environments: { [SECRET]: { baseUrl: "https://secret.cybozu.com", role: "development" } }, apps: [{ name: SECRET, [SECRET]: 1 }] }));
+  const conn = JSON.stringify({ defaultProfile: "dev", profiles: { dev: { baseUrl: "https://dev-x.cybozu.com", tokenMap: { APP101: SECRET } } } });
+  const outsideConn = path.join(out, "ksql.config.json");
+  writeFileSync(outsideConn, conn);
+  writeFileSync(path.join(root, "in.json"), conn);
+  writeFileSync(path.join(other, "other.json"), conn);
+  writeFileSync(path.join(out, "environments.json"), JSON.stringify({ default: SECRET, environments: { [SECRET]: { baseUrl: "https://secret.cybozu.com", role: "development" } } }));
   try {
-    symlinkSync(path.join(out, "environments.json"), path.join(root, "environments.json"));
+    symlinkSync(outsideConn, path.join(root, "link.json"));
+    symlinkSync(path.join(root, "in.json"), path.join(out, "to-inside.json"));
   } catch (e) {
     t.skip(`symlink を作れない: ${e.message}`);
     return;
   }
-  const s = await connectClaudeCode([root]);
   try {
-    const st = sc(await s.call("pcraft_workspace_status", { workspaceId: root }));
-    assert.equal(st.status, "ok");
-    assert.equal(st.result.ready, false);
-    assert.equal(st.result.environmentsJson.exists, true);
-    assert.match(st.result.environmentsJson.problem, /実体が作業フォルダーの外を指しているか、リンク切れ/);
-    const files = sc(await s.call("pcraft_files", { workspaceId: root }));
-    assert.deepEqual([files.status, files.error?.code], ["denied", "PathError"], JSON.stringify(files));
-    // kintone/ の下に書くときは environments.json で許可を決めるので denied。settings/ は environments.json を使わない（読まない）ので今までどおり
-    const intoApp = sc(await s.call("pcraft_save_settings", saveInput(root, "kintone/dev-x.cybozu.com/101-見積書/納品書.json")));
-    assert.deepEqual([intoApp.status, intoApp.error?.code], ["denied", "PathError"], JSON.stringify(intoApp));
-    assert.ok(!existsSync(path.join(root, "kintone")));
-    assert.equal(sc(await s.call("pcraft_save_settings", saveInput(root, "settings/a.json"))).status, "ok");
-    assert.ok(!/外の秘密|secret\.cybozu/.test(s.output()), "外のファイルの中身を返さない");
-    rmSync(path.join(root, "environments.json"));
-    symlinkSync(path.join(out, "無い.json"), path.join(root, "environments.json"));
-    const dangling = sc(await s.call("pcraft_workspace_status", { workspaceId: root }));
-    assert.match(dangling.result.environmentsJson.problem, /リンク切れ/, "リンク切れを「無い」にしない");
-    rmSync(path.join(root, "environments.json"));
-    mkdirSync(path.join(root, "config"));
-    writeFileSync(path.join(root, "config", "environments.json"), JSON.stringify({ environments: { dev: { baseUrl: "https://dev-x.cybozu.com", role: "development" } } }));
-    symlinkSync(path.join(root, "config", "environments.json"), path.join(root, "environments.json"));
-    const inside = sc(await s.call("pcraft_workspace_status", { workspaceId: root }));
-    assert.deepEqual(inside.result.environmentsJson.environments.list, [{ name: "dev", role: "development", host: "dev-x.cybozu.com" }], "中への symlink は読む");
+    for (const file of [path.join(root, "in.json"), path.join(root, "link.json"), path.join(out, "to-inside.json"), path.join(other, "other.json")]) {
+      const s = await connectClaudeCode([root, other], { PCRAFT_PLUGIN_ZIP: ZIP, PCRAFT_KINTONE_CONFIG: file });
+      try {
+        const st = sc(await s.call("pcraft_workspace_status", { workspaceId: root }));
+        assert.deepEqual([st.status, st.result.connection.problem?.code], ["ok", "inside-workspace"], `${file}: ${JSON.stringify(st.result.connection)}`);
+        const f = sc(await s.call("pcraft_fields", { workspaceId: root, app: 101 }));
+        assert.deepEqual([f.status, f.error?.code], ["denied", "inside-workspace"], file);
+        assert.ok(!s.output().includes(SECRET), `${file}: 中身を返さない`);
+      } finally {
+        await s.close();
+      }
+    }
+    // environments.json が外への symlink: lstat で有無だけを見る（中身を読まない）
+    symlinkSync(path.join(out, "environments.json"), path.join(root, "environments.json"));
+    const s = await connectClaudeCode([root], { PCRAFT_PLUGIN_ZIP: ZIP });
+    try {
+      const st = sc(await s.call("pcraft_workspace_status", { workspaceId: root }));
+      assert.deepEqual([st.result.mode, st.result.environmentsJson.exists], ["legacy-blocked", true]);
+      assert.equal(sc(await s.call("pcraft_save_settings", saveInput(root, "settings/a.json"))).status, "ok", "settings/ の作業は動く");
+      assert.ok(!/外の秘密|secret\.cybozu/.test(s.output()), "外のファイルの中身を返さない");
+    } finally {
+      await s.close();
+    }
   } finally {
-    await s.close();
     rmSync(root, { recursive: true, force: true });
+    rmSync(other, { recursive: true, force: true });
     rmSync(out, { recursive: true, force: true });
   }
 });
@@ -180,7 +187,8 @@ test("MAJOR 2: 2 つの作業フォルダーが別の zip を使うと、後の�
     copyFileSync(ZIP, path.join(zips, name));
     writeFileSync(path.join(root, ".env"), `PCRAFT_PLUGIN_ZIP=${path.join(zips, name)}\n`);
   }
-  const s = await connectClaudeCode([a, b], {});
+  const conn = makeConn();
+  const s = await connectClaudeCode([a, b], { PCRAFT_KINTONE_CONFIG: conn.file });
   try {
     const sa = sc(await s.call("pcraft_workspace_status", { workspaceId: a }));
     assert.deepEqual([sa.result.pluginZip.readable, sa.result.pluginZip.compatible, sa.result.ready], [true, true, true], JSON.stringify(sa.result));
@@ -195,6 +203,7 @@ test("MAJOR 2: 2 つの作業フォルダーが別の zip を使うと、後の�
     assert.equal(na.status, "ok", "読み込んだ zip の作業フォルダーは今までどおり");
   } finally {
     await s.close();
+    conn.cleanup();
     for (const r of [a, b]) rmSync(r, { recursive: true, force: true });
     rmSync(zips, { recursive: true, force: true });
   }
@@ -202,7 +211,7 @@ test("MAJOR 2: 2 つの作業フォルダーが別の zip を使うと、後の�
 
 test("MINOR 1: パスの引数の形。外へ出る形は denied（PathError）、ファイルのパスの形でないもの（.、./、末尾の /、//）は invalid（InputError）。日本語と a..b は通す", { skip }, async () => {
   const root = makeWorkspace();
-  const s = await connectClaudeCode([root], { PCRAFT_PLUGIN_ZIP: ZIP, KINTONE_BASE_URL: "https://x.cybozu.com", KINTONE_API_TOKEN: "test-token" }, { mockFetch: true });
+  const s = await connectClaudeCode([root], { PCRAFT_PLUGIN_ZIP: ZIP }, { mockFetch: true });
   const DENIED = ["/etc/x.json", "C:\\x.json", "C:x.json", "\\\\server\\share\\x.json", "\\\\?\\C:\\x.json", "~/x.json", "settings\\x.json", "settings/../x.json", "x\u0000.json"];
   const INVALID = [".", "settings/", "./settings/見積書.json", "settings//見積書.json", "settings/./見積書.json"];
   const digest = "0".repeat(64);
@@ -242,12 +251,14 @@ test("MINOR 1: パスの引数の形。外へ出る形は denied（PathError）�
   }
 });
 
-test("pcraft_files は作業フォルダーの絶対パスを返さない（名前だけ）。kintone/ そのもの・out/・settings/・records/・inbox/ が外への symlink なら denied", { skip }, async (t) => {
+test("pcraft_files は作業フォルダーの絶対パスを返さない（名前だけ）。kintone/ そのもの・profile のフォルダー・out/・settings/・records/・inbox/ が外への symlink なら denied", { skip }, async (t) => {
   const out = tmpRoot();
-  mkdirSync(path.join(out, "dev-x.cybozu.com", `101-${SECRET}`), { recursive: true });
+  mkdirSync(path.join(out, "dev", `101-${SECRET}`), { recursive: true });
   writeFileSync(path.join(out, `${SECRET}.json`), "{}");
+  const conn = makeConn();
+  const dev = core.pickProfile(core.loadConnections(conn.file, { workspaceRoots: [], env: {} }), "dev");
   const plain = makeWorkspace();
-  const s0 = await connectClaudeCode([plain]);
+  const s0 = await connectClaudeCode([plain], connEnv(conn.file));
   try {
     const r = sc(await s0.call("pcraft_files", { workspaceId: plain }));
     assert.equal(r.status, "ok");
@@ -257,22 +268,24 @@ test("pcraft_files は作業フォルダーの絶対パスを返さない（名�
     await s0.close();
     rmSync(plain, { recursive: true, force: true });
   }
-  const env = JSON.stringify({ default: "dev", environments: { dev: { baseUrl: "https://dev-x.cybozu.com", role: "development" } }, apps: [{ name: "見積書", dev: 101 }] });
   const cases = [
-    ["kintone/", true, (root) => symlinkSync(out, path.join(root, "kintone"))],
-    ["out/", true, (root) => {
-      const app = path.join(root, "kintone", "dev-x.cybozu.com", "101-見積書");
-      mkdirSync(app, { recursive: true });
+    ["kintone/", {}, (root) => symlinkSync(out, path.join(root, "kintone"))],
+    ["kintone/dev", {}, (root) => {
+      mkdirSync(path.join(root, "kintone"));
+      symlinkSync(path.join(out, "dev"), path.join(root, "kintone", "dev"));
+    }],
+    ["out/", { app: 101 }, (root) => {
+      const app = path.join(root, "kintone", "dev", "101-見積書");
+      core.ensureAppFolder(app, dev, 101);
       symlinkSync(out, path.join(app, "out"));
     }],
-    ["settings/", false, (root) => symlinkSync(out, path.join(root, "settings"))],
-    ["records/", false, (root) => symlinkSync(out, path.join(root, "records"))],
-    ["inbox/", false, (root) => symlinkSync(out, path.join(root, "inbox"))]
+    ["settings/", {}, (root) => symlinkSync(out, path.join(root, "settings"))],
+    ["records/", {}, (root) => symlinkSync(out, path.join(root, "records"))],
+    ["inbox/", {}, (root) => symlinkSync(out, path.join(root, "inbox"))]
   ];
   try {
-    for (const [name, withEnv, make] of cases) {
+    for (const [name, input, make] of cases) {
       const root = makeWorkspace();
-      if (withEnv) writeFileSync(path.join(root, "environments.json"), env);
       try {
         make(root);
       } catch (e) {
@@ -280,9 +293,9 @@ test("pcraft_files は作業フォルダーの絶対パスを返さない（名�
         rmSync(root, { recursive: true, force: true });
         return;
       }
-      const s = await connectClaudeCode([root]);
+      const s = await connectClaudeCode([root], connEnv(conn.file));
       try {
-        const r = sc(await s.call("pcraft_files", { workspaceId: root, ...(withEnv ? { app: "見積書" } : {}) }));
+        const r = sc(await s.call("pcraft_files", { workspaceId: root, ...input }));
         assert.deepEqual([r.status, r.error?.code], ["denied", "PathError"], `${name}: ${JSON.stringify(r)}`);
         assert.ok(!s.output().includes(SECRET), `${name}: 外の名前を返さない`);
       } finally {
@@ -291,6 +304,7 @@ test("pcraft_files は作業フォルダーの絶対パスを返さない（名�
       }
     }
   } finally {
+    conn.cleanup();
     rmSync(out, { recursive: true, force: true });
   }
 });
@@ -305,15 +319,18 @@ test("pcraft_pull のボタンの一覧も、権限のユーザー・組織・�
   const { date, pluginName, pluginID, PluginVersion, appId, appName, ...body } = n.output;
   writeFileSync(config, JSON.stringify(await engine.api.writeConfig({ ...body, pluginLastUpdate: "2026-10-05 10:00:00", pluginUpdater: "佐藤", pluginProductEnv: true }, "compressed")));
   const root = makeWorkspace();
-  const s = await connectClaudeCode([root], { PCRAFT_PLUGIN_ZIP: ZIP, KINTONE_BASE_URL: "https://x.cybozu.com", KINTONE_API_TOKEN: "test-token", PCRAFT_TEST_PLUGIN_CONFIG: config }, { mockFetch: true });
+  const conn = makeConn();
+  const s = await connectClaudeCode([root], connEnv(conn.file, { PCRAFT_TEST_PLUGIN_CONFIG: config }), { mockFetch: true });
   try {
     const r = sc(await s.call("pcraft_pull", { workspaceId: root, app: 3740 }));
     assert.equal(r.status, "ok", JSON.stringify(r));
+    assert.match(r.result.path, /^kintone\/dev\/3740-/);
     assert.match(r.result.buttons, /権限で絞る/);
     assert.match(readFileSync(path.join(root, r.result.path), "utf8"), /user-a,user-b/, "取った設定には権限の値がある");
     assert.ok(!/user-a|guest-a@example\.com|営業部|管理グループ/.test(JSON.stringify(r)), "応答には権限の値を返さない");
   } finally {
     await s.close();
+    conn.cleanup();
     rmSync(root, { recursive: true, force: true });
     rmSync(tmp, { recursive: true, force: true });
   }

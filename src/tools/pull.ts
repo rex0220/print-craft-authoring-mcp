@@ -1,20 +1,19 @@
 /**
- * pcraft_pull（アプリの今の印刷屋の設定を取る。実装案 5.1、5.4）: kintone の API ラボ「アプリに追加されているプラグインの設定情報を取得する」（GET だけ）。
- * 設定画面の「設定をダウンロード」と同じ封筒形式で、ダウンロードと同じ名前で新しいファイルとしてだけ置く（上書きしない）。
- *   保存先: environments.json があればアプリのフォルダー（本番も新しい名前で足すことはできる）、無ければ settings/APP<番号>-<アプリ名>.json（既にあれば conflict）
+ * pcraft_pull（アプリの今の印刷屋の設定を取る。実装案 5.1、5.4、15.8）: kintone の API ラボ「アプリに追加されているプラグインの設定情報を取得する」（GET だけ）。
+ * 設定画面の「設定をダウンロード」と同じ封筒形式で、アプリのフォルダー kintone/<profile>/<番号>-<アプリ名>/ に、ダウンロードと同じ名前で新しいファイルとしてだけ置く
+ * （上書きしない。フォルダーが無ければ印を置いて作る。15.5）。
  *   Desktop は運用環境の設定だけ（動作テスト環境はアプリ管理の権限が要る。閲覧だけの API トークンで運用環境は取れた。試作 0-4）
  * 返すのはボタンの一覧と digest（設定ファイルそのものは返さない）
  */
-import { mkdirSync } from "node:fs";
 import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
-import { FileExistsError, InputError, RestError, WRITE_ROOTS, appDirFor, assertChangeAllowed, defaultPullName, digestOf, listButtons, pullSettings, resolveWrite, snapshotNameOf, writeNewFile } from "../core.ts";
+import { FileExistsError, InputError, RestError, WRITE_ROOTS, appDirFor, assertChangeAllowed, digestOf, ensureAppFolder, listButtons, pullSettings, resolveWrite, snapshotNameOf, writeNewFile } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { failure, ok } from "../result.ts";
 import { isToolResult, prepare, workspaceIdSchema } from "./common.ts";
-import { checkHostDir, fromError, redactPersonal, rel } from "./files.ts";
-import { appIdOf, appSchema, envSchema, kintoneFor } from "./kintone.ts";
+import { checkWritable, fromError, precheckAppWrite, redactPersonal, rel } from "./files.ts";
+import { appSchema, kintoneFor, profileOf, profileSchema } from "./kintone.ts";
 
 export function registerPull(server: McpServer, ctx: ServerContext): void {
   const preview =
@@ -26,15 +25,14 @@ export function registerPull(server: McpServer, ctx: ServerContext): void {
     {
       title: "アプリの今の印刷屋の設定を取る",
       description:
-        "kintone のアプリに入っている印刷屋プラグイン（rex0220 Print craft）の今の設定を取り、設定画面の「設定をダウンロード」と同じ形・同じ名前で作業フォルダーに新しく置く（上書きしない）。" +
+        "kintone のアプリに入っている印刷屋プラグイン（rex0220 Print craft）の今の設定を取り、設定画面の「設定をダウンロード」と同じ形・同じ名前で作業フォルダーのアプリのフォルダーに新しく置く（上書きしない）。" +
         "kintone の API ラボ（プラグインの設定情報を取得する API）を有効にした環境だけ。kintone には読み取り（GET）だけ。ボタンの一覧と digest を返す。" +
         "取れなければ、利用者に設定画面でダウンロードしてもらう。結果を推し量らず、このツールで確かめる",
       inputSchema: z
         .object({
           workspaceId: workspaceIdSchema(ctx.surface),
           app: appSchema,
-          env: envSchema,
-          guestSpaceId: z.number().int().positive().optional().describe("ゲストスペースのアプリならスペースの番号"),
+          profile: profileSchema,
           ...preview
         })
         .strict(),
@@ -47,14 +45,15 @@ export function registerPull(server: McpServer, ctx: ServerContext): void {
           if (isToolResult(w)) return w;
           const pluginId = w.engine.source.pluginId;
           if (!pluginId) throw new InputError("印刷屋のプラグイン ID が分からない（印刷屋の zip に PUBKEY が無い）");
-          const target = kintoneFor(ctx, w.root, input.env);
-          // 保存先のホストのフォルダーの実体が作業フォルダーの中か（kintone に送る前に。Codex の B1 レビュー BLOCKER 1）
-          if (target.env) checkHostDir(w.root, target.env);
-          const appId = appIdOf(target, input.app);
+          const t = profileOf(w.mode, input.profile);
+          const appId = input.app;
+          // 保存先に書けるか（実体が作業フォルダーの中、印が今の接続のこのアプリのもの）を kintone に送る前に確かめる
+          const existing = precheckAppWrite(w.root, t.def, appId, snapshotNameOf(appId), "snapshot", t.mode);
+          const k = kintoneFor(t, appId);
           const usePreview = "preview" in input && input.preview === true;
           let result;
           try {
-            result = await pullSettings(target.client, w.engine, { app: appId, preview: usePreview, guestSpaceId: input.guestSpaceId, pluginId });
+            result = await pullSettings(k.client, w.engine, { app: appId, preview: usePreview, guestSpaceId: k.guestSpaceId, pluginId });
           } catch (e) {
             if (e instanceof RestError && /plugin\/config/.test(e.apiPath ?? "")) {
               return failure(
@@ -65,26 +64,35 @@ export function registerPull(server: McpServer, ctx: ServerContext): void {
             }
             throw e;
           }
-          const ws = target.ws && target.env;
-          const out = ws ? path.join(appDirFor(w.root, target.env!, appId, result.appName), snapshotNameOf(appId)) : path.join(w.root, "settings", defaultPullName(result.appName, appId));
-          const roots = ws ? WRITE_ROOTS.kintone : WRITE_ROOTS.settings;
-          const op = ws ? "snapshot" : "settings";
-          const real = resolveWrite(rel(w.root, out), roots, w.root);
-          assertChangeAllowed(w.root, real, op);
-          mkdirSync(path.dirname(real), { recursive: true }); // 新しいアプリのフォルダー（書ける場所と許可を確かめた後）
+          const dir = existing ?? appDirFor(w.root, t.def.profile, appId, result.appName);
+          const real = checkWritable(w.root, path.join(dir, snapshotNameOf(appId)), WRITE_ROOTS.kintone, "snapshot", t.mode);
+          ensureAppFolder(dir, t.def, appId);
           const text = `${JSON.stringify(result.envelope, null, 2)}\n`;
           try {
             writeNewFile(real, text, () => {
-              if (resolveWrite(rel(w.root, real), roots, w.root) !== real) throw new InputError("書く先のフォルダーが途中で変わった");
-              assertChangeAllowed(w.root, real, op);
+              if (resolveWrite(rel(w.root, real), WRITE_ROOTS.kintone, w.root) !== real) throw new InputError("書く先のフォルダーが途中で変わった");
+              assertChangeAllowed(w.root, real, "snapshot", t.mode);
             });
           } catch (e) {
-            if (e instanceof FileExistsError) return failure("conflict", "ConflictError", `${rel(w.root, real)} は既にある（上書きしない）。${ws ? "少し待ってからやり直す（名前は日時で決まる）" : "前の pull を別の名前にするか消してもらう"}`);
+            if (e instanceof FileExistsError) return failure("conflict", "ConflictError", `${rel(w.root, real)} は既にある（上書きしない）。少し待ってからやり直す（名前は日時で決まる）`);
             throw e;
           }
           const menus = (Array.isArray(result.envelope.pluginInfos) ? result.envelope.pluginInfos : []).map((r) => String((r as { menu?: unknown }).menu ?? ""));
           return ok(
-            { path: rel(w.root, real), appId, appName: result.appName, revision: result.revision, format: result.format, preview: usePreview, menus, buttons: listButtons(redactPersonal(result.envelope), { file: rel(w.root, real) }), auth: target.authLabel, baseUrl: target.client.baseUrl },
+            {
+              path: rel(w.root, real),
+              appId,
+              appName: result.appName,
+              revision: result.revision,
+              format: result.format,
+              preview: usePreview,
+              menus,
+              buttons: listButtons(redactPersonal(result.envelope), { file: rel(w.root, real) }),
+              profile: t.def.profile,
+              ...(k.guestSpaceId ? { guestSpaceId: k.guestSpaceId } : {}),
+              auth: k.authLabel,
+              baseUrl: k.client.baseUrl
+            },
             { digest: digestOf(text) }
           );
         } catch (e) {

@@ -1,10 +1,12 @@
 /**
- * 作業フォルダーのファイルを扱うツール（実装案 5.1 の最後の行。今の CLI の files / take / edit / diff）。
- *   - pcraft_files: environments.json があればアプリのフォルダーの一覧（ダウンロード / pull は新しい順、-edit.json、新しい帳票、records、out）、
- *     無ければ settings/ temp/ fields/ records/ の設定などのファイルの名前（Desktop の AI はファイルの一覧を見る手段が無い）。名前だけ（中身は返さない）
- *   - pcraft_take: inbox/ のダウンロードを、名前のまま アプリのフォルダーへ移す（本番も新しい名前で足すことはできる。上書きしない）
+ * 作業フォルダーのファイルを扱うツール（実装案 5.1 の最後の行、15.8。今の CLI の files / take / edit / diff）。
+ *   - pcraft_files: app を付ければ profile のそのアプリのフォルダーの一覧（ダウンロード / pull は新しい順、-edit.json、新しい帳票、records、out）。
+ *     無ければ profile ごとのアプリのフォルダーの名前と印の状態、使われていない profile のフォルダーの名前、settings/ temp/ fields/ records/ の JSON の名前、inbox/ の件数
+ *     （Desktop の AI はファイルの一覧を見る手段が無い）。名前だけ（中身は返さない。印の合わないフォルダーの中は一覧しない。15.5）
+ *   - pcraft_take: inbox/ のダウンロードを、名前のまま profile のアプリのフォルダーへ移す（上書きしない）
  *   - pcraft_edit: アプリのフォルダーのダウンロード / pull を -edit.json に写す（ダウンロードは書き換えない。既にあればそのまま）
  *   - pcraft_diff: 2 つの設定の差（ボタン単位。data: の URL は短く）
+ * アプリのフォルダー（kintone/**）を使うのは、kintone の接続のファイルがあるときだけ（profile の形。15.4）
  */
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
@@ -17,23 +19,25 @@ import {
   SNAPSHOT_RE,
   WRITE_ROOTS,
   appFolderOfFile,
+  appFoldersOf,
   assertChangeAllowed,
   diffSettings,
   editNameOf,
   listAppFolder,
-  loadWorkspace,
-  pickEnv,
-  resolveApp,
+  pickProfile,
+  requireProfiles,
   resolveRead,
   resolveWrite,
   takeInbox,
-  writeNewFile
+  unusedProfileDirs,
+  writeNewFile,
+  type WorkspaceMode
 } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { ok, type Finding } from "../result.ts";
-import { incompatibleResult, workspaceIdSchema } from "./common.ts";
-import { appDirIn, checkHostDir, checkRelPaths, fromError, insideDir, readSettingsFile, redactPersonal, rel } from "./files.ts";
-import { appSchema, envSchema } from "./kintone.ts";
+import { incompatibleResult, lazyMode, workspaceIdSchema } from "./common.ts";
+import { appDirIn, checkRelPaths, fromError, insideDir, readSettingsFile, redactPersonal, rel } from "./files.ts";
+import { appSchema, profileSchema } from "./kintone.ts";
 
 /** 一覧の上限（AI に返す量） */
 const MAX_LIST = 200;
@@ -57,7 +61,29 @@ function namesUnder(root: string, dir: string, depth = 2): string[] {
   return out;
 }
 
-const workspaceRequired = (what: string): InputError => new InputError(`${what} は作業フォルダーに environments.json があるときだけ使える（今の形では settings/ のファイルをそのまま使う）`);
+/** 作業フォルダーの直下の、アプリのフォルダーの外のファイル（settings/ など。どの形でも使える） */
+function localFiles(root: string): { files: Record<string, string[]>; truncated: boolean } {
+  const files: Record<string, string[]> = {};
+  for (const d of ["settings", "temp", "fields", "records"]) files[d] = namesUnder(root, d);
+  const truncated = Object.values(files).some((l) => l.length > MAX_LIST);
+  for (const d of Object.keys(files)) files[d] = files[d].slice(0, MAX_LIST);
+  return { files, truncated };
+}
+
+/** profile ごとのアプリのフォルダーの名前と印の状態（中は一覧しない）と、使われていない profile のフォルダー（使えない profile か、接続のファイルに無い profile） */
+function profileFolders(root: string, mode: Extract<WorkspaceMode, { kind: "profiles" }>, only: string | undefined) {
+  const set = mode.connections.set;
+  const defs = only !== undefined ? [pickProfile(set, only)] : [...set.profiles.values()];
+  const profiles = defs.map((def) => ({
+    name: def.profile,
+    host: def.host,
+    ...(def.guestSpaceId ? { guestSpaceId: def.guestSpaceId } : {}),
+    folders: appFoldersOf(root, def).slice(0, MAX_LIST)
+  }));
+  const invalid = new Set(set.invalid.map((p) => p.name));
+  const unused = only !== undefined ? [] : unusedProfileDirs(root, set).map((name) => ({ name, reason: invalid.has(name) ? "profile-invalid" : "unknown-profile" }));
+  return { profiles, unused };
+}
 
 export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): void {
   server.registerTool(
@@ -65,9 +91,9 @@ export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): v
     {
       title: "印刷屋の作業フォルダーのファイルの一覧",
       description:
-        "印刷屋プラグイン（rex0220 Print craft）の作業フォルダーのファイルの名前の一覧（中身は返さない）。environments.json があれば app のアプリのフォルダー（ダウンロード / pull は新しい順で先頭が今の設定、-edit.json、新しい帳票、records、out）、" +
-        "無ければ settings/ temp/ fields/ records/ の JSON と inbox/ の件数。読み取りだけ",
-      inputSchema: z.object({ workspaceId: workspaceIdSchema(ctx.surface), app: appSchema.optional(), env: envSchema }).strict(),
+        "印刷屋プラグイン（rex0220 Print craft）の作業フォルダーのファイルの名前の一覧（中身は返さない）。app を付けると、kintone の接続のファイルの profile のそのアプリのフォルダー（ダウンロード / pull は新しい順で先頭が今の設定、-edit.json、新しい帳票、records、out）。" +
+        "省くと、profile ごとのアプリのフォルダーの名前と状態、settings/ temp/ fields/ records/ の JSON、inbox/ の件数。読み取りだけ",
+      inputSchema: z.object({ workspaceId: workspaceIdSchema(ctx.surface), app: appSchema.optional(), profile: profileSchema }).strict(),
       annotations: { readOnlyHint: true, openWorldHint: false }
     },
     async (input) => {
@@ -75,35 +101,41 @@ export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): v
         const root = ctx.binding.resolve(input.workspaceId);
         const incompatible = incompatibleResult();
         if (incompatible) return incompatible;
-        const ws = loadWorkspace(root);
-        if (!ws) {
-          if (input.env !== undefined || input.app !== undefined) throw workspaceRequired("app / env");
-          const list: Record<string, string[]> = {};
-          for (const d of ["settings", "temp", "fields", "records"]) list[d] = namesUnder(root, d);
-          const truncated = Object.values(list).some((l) => l.length > MAX_LIST);
-          for (const d of Object.keys(list)) list[d] = list[d].slice(0, MAX_LIST);
-          return ok({ workspace: { name: path.basename(root) }, environmentsJson: false, files: list, inbox: namesUnder(root, INBOX, 1).length }, truncated ? { findings: [{ level: "info", rule: "truncated", message: `一覧を ${MAX_LIST} 件で打ち切った` }] } : {});
+        const mode = ctx.mode(root);
+        if (input.app !== undefined) {
+          const set = requireProfiles(mode, "pcraft_files の app").set;
+          const def = pickProfile(set, input.profile);
+          const dir = appDirIn(root, def, input.app);
+          if (!dir) throw new InputError(`アプリ ${input.app} のフォルダー（kintone/${def.profile}/${input.app}-…）が無い。先に pcraft_fields（か pcraft_pull）でアプリのフォルダーを作る`);
+          const l = listAppFolder(dir, root);
+          return ok({
+            workspace: { name: path.basename(root) },
+            profile: { name: def.profile, host: def.host, ...(def.guestSpaceId ? { guestSpaceId: def.guestSpaceId } : {}) },
+            folder: rel(root, dir),
+            fields: l.hasFields,
+            snapshots: l.snapshots,
+            current: l.snapshots[0] ?? null,
+            edits: l.edits,
+            reports: l.reports,
+            records: l.records,
+            outs: l.outs,
+            inbox: namesUnder(root, INBOX, 1).length
+          });
         }
-        if (input.app === undefined) throw new InputError("environments.json があるときは app（番号か apps の名前）が要る");
-        const env = pickEnv(ws, input.env);
-        const appId = typeof input.app === "number" ? input.app : resolveApp(ws, env, input.app).appId;
-        const dir = appDirIn(root, env, appId);
-        if (!dir) throw new InputError(`アプリ ${appId} のフォルダー（kintone/${env.host}/${appId}-…）が無い。先に pcraft_fields で項目定義を取る`);
-        const l = listAppFolder(dir);
-        return ok({
-          workspace: { name: path.basename(root) },
-          environmentsJson: true,
-          env: { name: env.name, role: env.role, host: env.host },
-          folder: rel(root, dir),
-          fields: l.hasFields,
-          snapshots: l.snapshots,
-          current: l.snapshots[0] ?? null,
-          edits: l.edits,
-          reports: l.reports,
-          records: l.records,
-          outs: l.outs,
-          inbox: namesUnder(root, INBOX, 1).length
-        });
+        if (input.profile !== undefined) requireProfiles(mode, "pcraft_files の profile");
+        const local = localFiles(root);
+        const folders = mode.kind === "profiles" ? profileFolders(root, mode, input.profile) : undefined;
+        return ok(
+          {
+            workspace: { name: path.basename(root) },
+            mode: mode.kind,
+            ...(folders ? { profiles: folders.profiles, ...(folders.unused.length ? { unusedFolders: folders.unused } : {}) } : {}),
+            files: local.files,
+            inbox: namesUnder(root, INBOX, 1).length,
+            ...(mode.kind === "profiles" ? {} : { note: "kintone の接続のファイルが無いので、アプリのフォルダー（kintone/）は使わない。診断は pcraft_workspace_status" })
+          },
+          local.truncated ? { findings: [{ level: "info", rule: "truncated", message: `一覧を ${MAX_LIST} 件で打ち切った` }] } : {}
+        );
       } catch (e) {
         return fromError(e);
       }
@@ -115,9 +147,9 @@ export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): v
     {
       title: "inbox のダウンロードをアプリのフォルダーへ",
       description:
-        "印刷屋プラグイン（rex0220 Print craft）の設定画面でダウンロードしたファイル（rex0220-print-craft-app<番号>-<日時>.json）を、利用者が置いた inbox/ から、名前のまま アプリのフォルダーへ移す（environments.json があるときだけ）。" +
-        "上書きはしない。結果を推し量らず、返った moved / skipped をそのまま伝える",
-      inputSchema: z.object({ workspaceId: workspaceIdSchema(ctx.surface), env: envSchema }).strict(),
+        "印刷屋プラグイン（rex0220 Print craft）の設定画面でダウンロードしたファイル（rex0220-print-craft-app<番号>-<日時>.json）を、利用者が置いた inbox/ から、名前のまま アプリのフォルダー（kintone/<profile>/<番号>-…/）へ移す。" +
+        "profile は引数、無ければ接続のファイルの defaultProfile、無ければ dev（ダウンロードにはドメインが無いので推し量らない）。上書きはしない。結果を推し量らず、返った moved / skipped をそのまま伝える",
+      inputSchema: z.object({ workspaceId: workspaceIdSchema(ctx.surface), profile: profileSchema }).strict(),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
     },
     async (input) => {
@@ -125,13 +157,9 @@ export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): v
         const root = ctx.binding.resolve(input.workspaceId);
         const incompatible = incompatibleResult();
         if (incompatible) return incompatible;
-        const ws = loadWorkspace(root);
-        if (!ws) throw workspaceRequired("pcraft_take");
-        if (input.env !== undefined) pickEnv(ws, input.env);
-        // inbox と kintone/ の実体が作業フォルダーの中か（symlink で外を指していれば、一覧を作る前に断る。Codex の B1 レビュー BLOCKER 1）
+        // inbox の実体が作業フォルダーの中か（symlink で外を指していれば、一覧を作る前に断る。Codex の B1 レビュー BLOCKER 1）。kintone/ と profile のフォルダーは中核が確かめる
         if (existsSync(path.join(root, INBOX))) insideDir(root, path.join(root, INBOX));
-        for (const env of Object.values(ws.environments)) checkHostDir(root, env);
-        const r = takeInbox(root, ws, input.env);
+        const r = takeInbox(root, ctx.mode(root), input.profile);
         const findings: Finding[] = [
           ...r.skipped.map((s) => ({ level: "warning", rule: "take.skipped", message: `${s.file}: ${s.reason}` })),
           ...r.warnings.map((w) => ({ level: "warning", rule: "take.warning", message: w }))
@@ -149,13 +177,13 @@ export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): v
       title: "ダウンロードを -edit.json に写す",
       description:
         "印刷屋プラグイン（rex0220 Print craft）のアプリのフォルダーのダウンロード / pull のファイルを、直すための -edit.json に写す（ダウンロードのファイルは書き換えない。-edit.json が既にあればそのまま）。" +
-        "path を省くと app の一番新しいダウンロード / pull（今の設定）。environments.json があるときだけ。結果を推し量らず、このツールで確かめる",
+        "path を省くと app の一番新しいダウンロード / pull（今の設定）。kintone の接続のファイルがあるときだけ。結果を推し量らず、このツールで確かめる",
       inputSchema: z
         .object({
           workspaceId: workspaceIdSchema(ctx.surface),
           path: z.string().min(1).max(512).optional().describe("ダウンロード / pull のファイル（作業フォルダーからの相対パス）"),
           app: appSchema.optional(),
-          env: envSchema
+          profile: profileSchema
         })
         .strict(),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
@@ -166,28 +194,29 @@ export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): v
         const root = ctx.binding.resolve(input.workspaceId);
         const incompatible = incompatibleResult();
         if (incompatible) return incompatible;
-        const ws = loadWorkspace(root);
-        if (!ws) throw workspaceRequired("pcraft_edit");
+        const mode = ctx.mode(root);
+        const set = requireProfiles(mode, "pcraft_edit").set;
         let src = input.path;
         if (!src) {
           if (input.app === undefined) throw new InputError("path か app が要る");
-          const env = pickEnv(ws, input.env);
-          const appId = typeof input.app === "number" ? input.app : resolveApp(ws, env, input.app).appId;
-          const dir = appDirIn(root, env, appId);
-          if (!dir) throw new InputError(`アプリ ${appId} のフォルダーが無い。先に pcraft_fields`);
-          const l = listAppFolder(dir);
+          const def = pickProfile(set, input.profile);
+          const dir = appDirIn(root, def, input.app);
+          if (!dir) throw new InputError(`アプリ ${input.app} のフォルダー（kintone/${def.profile}/${input.app}-…）が無い。先に pcraft_fields（か pcraft_pull）`);
+          const l = listAppFolder(dir, root);
           if (!l.snapshots.length) throw new InputError(`${rel(root, dir)} にダウンロード / pull のファイルが無い（設定画面でダウンロードして inbox/ に置き pcraft_take、または pcraft_pull）`);
           src = rel(root, path.join(dir, l.snapshots[0]));
         }
-        const f = readSettingsFile(root, src);
-        if (!SNAPSHOT_RE.test(path.basename(f.file)) || !appFolderOfFile(root, f.file)) throw new InputError(`写すのはアプリのフォルダーのダウンロード / pull のファイル（rex0220-print-craft-app<番号>-<日時>.json）: ${f.relPath}`);
+        const folder = appFolderOfFile(root, path.resolve(root, src));
+        if (!SNAPSHOT_RE.test(path.basename(src)) || !folder) throw new InputError(`写すのはアプリのフォルダーのダウンロード / pull のファイル（rex0220-print-craft-app<番号>-<日時>.json）: ${src}`);
+        if (input.profile !== undefined && input.profile !== folder.profile) throw new InputError(`profile「${input.profile}」とファイルのフォルダーの profile（${folder.profile}）が違う`);
+        const f = readSettingsFile(root, src, mode);
         const dest = resolveWrite(rel(root, editNameOf(f.file)), WRITE_ROOTS.kintone, root);
         if (existsSync(dest)) return ok({ path: rel(root, dest), from: f.relPath, existed: true, next: "既にある -edit.json を続けて直す（pcraft_buttons → pcraft_update_button）" });
-        assertChangeAllowed(root, dest, "settings");
+        assertChangeAllowed(root, dest, "settings", mode);
         try {
           writeNewFile(dest, f.text, () => {
             if (resolveWrite(rel(root, dest), WRITE_ROOTS.kintone, root) !== dest) throw new InputError("書く先のフォルダーが途中で変わった");
-            assertChangeAllowed(root, dest, "settings");
+            assertChangeAllowed(root, dest, "settings", mode);
           });
         } catch (e) {
           if (e instanceof FileExistsError) return ok({ path: rel(root, dest), from: f.relPath, existed: true, next: "既にある -edit.json を続けて直す" });
@@ -223,8 +252,10 @@ export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): v
         const root = ctx.binding.resolve(input.workspaceId);
         const incompatible = incompatibleResult();
         if (incompatible) return incompatible;
-        const a = readSettingsFile(root, input.before);
-        const b = readSettingsFile(root, input.after);
+        // 接続のファイルは kintone/** の中のファイルのときだけ読む（15.9 の表）
+        const mode = lazyMode(ctx, root);
+        const a = readSettingsFile(root, input.before, mode);
+        const b = readSettingsFile(root, input.after, mode);
         // 権限のユーザー・組織・グループ・ゲストの値は伏せる（件数と digest。変わったかは分かる。Codex の B1 レビュー MAJOR 1）
         let text = diffSettings(redactPersonal(a.settings), redactPersonal(b.settings), { derived: input.derived === true });
         const truncated = text.length > MAX_DIFF_CHARS;

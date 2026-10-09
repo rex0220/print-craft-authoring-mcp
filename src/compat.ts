@@ -1,12 +1,13 @@
 /**
  * 互換表（compat.json。実装案 7 章）。ビルドのときに埋め込み、実行のときに確かめる。
  *   - runtimeChecks: schemaVersion（知らない値なら拒否）、mcpVersion（このサーバーの版）、coreVersion（束ねた中核の版の範囲）、
+ *     coreApiVersion（束ねた中核の入口の API の版 CORE_API_VERSION。tools 2.0.0 で 2。実装案 15.11）、
  *     docsRevision（埋め込んだ資料の元のコミット）、authoringApiVersions と pluginVersion.min（印刷屋の zip を読んだとき）
  *   - 合わなければ、作業フォルダーを使うツールを incompatible で止める（判定できないときも止める）。pcraft_docs / pcraft_status /
  *     pcraft_workspace_status は止めない（登録の前や版が合わないときにも、目次・版・診断を読めるように。5.1）
  *   - プレリリースの版は、範囲に明記したときだけ通す（ここでは明記しないので通さない）
  */
-import type { Engine } from "./core.ts";
+import { CORE_API_VERSION, type Engine } from "./core.ts";
 import { DOCS } from "./docs.ts";
 import { VERSION, coreVersion } from "./version.ts";
 
@@ -17,6 +18,7 @@ export interface Compat {
   runtimeChecks: {
     mcpVersion: string;
     coreVersion: string;
+    coreApiVersion: number;
     docsRevision: string;
     authoringApiVersions: number[];
     pluginVersion: { min: number; max?: number };
@@ -82,6 +84,7 @@ export function buildProblem(): string | undefined {
   if (r.mcpVersion !== VERSION) return `互換表の mcpVersion ${String(r.mcpVersion)} とこのサーバーの版 ${VERSION} が違う`;
   const core = coreVersion().toolsVersion;
   if (typeof r.coreVersion !== "string" || !satisfies(core, r.coreVersion)) return `束ねた中核の版 ${core} が互換表の範囲 ${String(r.coreVersion)} に入らない`;
+  if (r.coreApiVersion !== CORE_API_VERSION) return `束ねた中核の API の版 ${String(CORE_API_VERSION)} と互換表の coreApiVersion ${String(r.coreApiVersion)} が違う`;
   if (r.docsRevision !== DOCS.source.short) return `埋め込んだ資料の元 ${DOCS.source.short || "（無し）"} と互換表の docsRevision ${String(r.docsRevision)} が違う`;
   if (!Array.isArray(r.authoringApiVersions) || !r.authoringApiVersions.length || !r.pluginVersion || typeof r.pluginVersion.min !== "number") return "互換表の authoringApiVersions / pluginVersion が読めない";
   return undefined;

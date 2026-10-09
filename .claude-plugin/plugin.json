@@ -18,32 +18,11 @@
       "description": "アプリに入れた印刷屋プラグインの zip の絶対パス（空なら作業フォルダーの .env の PCRAFT_PLUGIN_ZIP）",
       "required": false
     },
-    "kintoneBaseUrl": {
+    "kintoneConfig": {
       "type": "string",
-      "title": "kintone の URL",
-      "description": "https://<サブドメイン>.cybozu.com（空なら作業フォルダーの .env。environments.json があるときは使わない）",
+      "title": "kintone の接続のファイル",
+      "description": "kSQL の ksql.config.json と同じ形のファイルの絶対パス（作業フォルダーの外に置く。kSQL と同じファイルでもよい）。空なら kintone を使うツールは使えない",
       "required": false
-    },
-    "kintoneApiToken": {
-      "type": "string",
-      "title": "kintone の API トークン",
-      "description": "閲覧だけの API トークンを勧める（空なら作業フォルダーの .env）",
-      "required": false,
-      "sensitive": true
-    },
-    "kintoneUsername": {
-      "type": "string",
-      "title": "kintone のログイン名",
-      "description": "API トークンを使わないとき（空なら作業フォルダーの .env）",
-      "required": false,
-      "sensitive": true
-    },
-    "kintonePassword": {
-      "type": "string",
-      "title": "kintone のパスワード",
-      "description": "API トークンを使わないとき",
-      "required": false,
-      "sensitive": true
     }
   }
 }

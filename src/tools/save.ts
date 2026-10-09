@@ -9,7 +9,8 @@ import { z } from "zod";
 import { MAX_SAVE_INPUT_BYTES, saveNewSettings } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { fromSaveResult, isToolResult, prepare, workspaceIdSchema } from "./common.ts";
-import { checkRelPaths, fromError, trustedBaseUrl } from "./files.ts";
+import { checkRelPaths, fromError, originFields, trustedOrigin } from "./files.ts";
+import { profileSchema } from "./kintone.ts";
 
 export function registerSaveSettings(server: McpServer, ctx: ServerContext): void {
   server.registerTool(
@@ -25,7 +26,8 @@ export function registerSaveSettings(server: McpServer, ctx: ServerContext): voi
           path: z.string().min(1).max(512).describe("保存先。作業フォルダーからの相対パス（例 settings/APP3740-見積書-ご提案書.json）"),
           content: z.string().min(1).max(MAX_SAVE_INPUT_BYTES).describe("設定 JSON（封筒形式）の全文。UTF-8 で 256 KiB まで"),
           fields: z.string().min(1).max(512).optional().describe("項目定義のファイル（作業フォルダーからの相対パス。例 fields/3740.json）。アプリのフォルダー kintone/… の中に保存するときは省略する（同じフォルダーの fields.json を使う）"),
-          expectedAbsent: z.literal(true).describe("同じ名前のファイルが無いこと（上書きしない）。true だけ")
+          expectedAbsent: z.literal(true).describe("同じ名前のファイルが無いこと（上書きしない）。true だけ"),
+          profile: profileSchema.describe("kintone の接続のファイルの profile（preview の iframe と外部 URL の判定に使う接続先。アプリのフォルダー kintone/<profile>/… の中のファイルは省略する。省略すると defaultProfile、無ければ dev。決まらなければ接続先なし）"),
         })
         .strict(),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
@@ -36,9 +38,12 @@ export function registerSaveSettings(server: McpServer, ctx: ServerContext): voi
           checkRelPaths({ path: input.path, fields: input.fields });
           const w = await prepare(ctx, input.workspaceId);
           if (isToolResult(w)) return w;
-          const baseUrl = trustedBaseUrl(ctx, w.root, path.resolve(w.root, input.path));
-          const r = await saveNewSettings({ root: w.root, engine: w.engine, policy: w.policy, baseUrl }, { path: input.path, content: input.content, fields: input.fields, expectedAbsent: input.expectedAbsent });
-          return fromSaveResult(r);
+          const origin = trustedOrigin(w.mode, w.root, path.resolve(w.root, input.path), input.profile);
+          const r = await saveNewSettings(
+            { root: w.root, engine: w.engine, policy: w.policy, baseUrl: origin.baseUrl, mode: w.mode },
+            { path: input.path, content: input.content, fields: input.fields, expectedAbsent: input.expectedAbsent }
+          );
+          return fromSaveResult(r, originFields(origin));
         } catch (e) {
           return fromError(e);
         }

@@ -2,8 +2,10 @@
  * 応答の形（実装案 5.2。kSQL の toToolResult にそろえる）。
  *   成功: { ok: true, status: "ok", findings, result, digest? }
  *   失敗: { ok: false, status, error: { code, message }, findings }、isError: true
- * status は ok / invalid（normalize のエラー、入力の誤り）/ incompatible（互換表に合わない）/ conflict（ファイルがある、digest が違う）/
- * denied（作業フォルダーの外・未登録・本番・ダウンロードのファイル）/ failed（時間切れ・上限・想定外の失敗）
+ * status は ok / invalid（呼び出しの引数・利用者の入力の誤り。normalize のエラーを含む）/ incompatible（互換表に合わない）/
+ * conflict（呼び出しの途中の変更、digest が違う、ファイルがある、接続とアプリのフォルダーの印が合わない、同じアプリのフォルダーが 2 つ）/
+ * denied（決まり・境界による拒否: 作業フォルダーの外・未登録・書けない場所・ダウンロードのファイル・作業フォルダーの中の接続のファイル）/
+ * failed（要る設定が無い・読めない・形が違う、通信の失敗、時間切れ・上限・想定外の失敗）。実装案 5.2、15.10
  * content の文字と structuredContent は同じ中身。秘密の値は入れない
  */
 import os from "node:os";

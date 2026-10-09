@@ -1,6 +1,8 @@
 // 試験の共通: 束ねた print-craft MCP（dist/server/index.cjs）を MCP のクライアント（SDK v2）で起動して話す。
-// 印刷屋の zip は環境変数 PCRAFT_TEST_PLUGIN_ZIP か、隣の print-craft の dist/print-craft-plugin7.zip（無ければ試験を飛ばす）
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+// 印刷屋の zip は環境変数 PCRAFT_TEST_PLUGIN_ZIP か、隣の print-craft の dist/print-craft-plugin7.zip（無ければ試験を飛ばす）。
+// kintone の接続のファイル（kSQL の ksql.config.json の形。実装案 15 章）は作業フォルダーの外の一時フォルダーに置く（makeConn）
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -64,4 +66,41 @@ export const connectClaudeCode = (roots, env = { PCRAFT_PLUGIN_ZIP: ZIP }, opt =
 export const connectDesktop = (dir, env = { PCRAFT_PLUGIN_ZIP: ZIP }, opt = {}) => connect(["--surface", "desktop", "--workspace-dir", dir], env, opt);
 
 export const sc = (r) => r.structuredContent;
+
+/** 接続のファイルに直接書く試験のトークン（応答・標準エラーに出てはいけない） */
+export const TOKENS = { dev3740: "TEST-dev-3740-not-a-real-token", dev101: "TEST-dev-101-not-a-real-token", prod3740: SECRET, guest3740: "TEST-guest-3740-not-a-real-token" };
+/** 開発（dev-x）と本番（x）とゲストスペース 7（x）。dev の APP101 は env:（PCRAFT_TEST_TOKEN_101） */
+export const CONN = {
+  defaultProfile: "dev",
+  profiles: {
+    dev: { baseUrl: "https://dev-x.cybozu.com", tokenMap: { APP3740: TOKENS.dev3740, APP101: "env:PCRAFT_TEST_TOKEN_101", APP9999: TOKENS.dev3740 } },
+    prod: { baseUrl: "https://x.cybozu.com", tokenMap: { APP3740: TOKENS.prod3740 } },
+    guest7: { baseUrl: "https://x.cybozu.com", guestSpaceId: 7, tokenMap: { "3740": TOKENS.guest3740 } }
+  }
+};
+
+/** kintone の接続のファイル（作業フォルダーの外の一時フォルダー）。write で書き換える */
+export function makeConn(conn = CONN) {
+  const dir = realpathSync(mkdtempSync(path.join(os.tmpdir(), "pcraft-mcp-conn-")));
+  const file = path.join(dir, "ksql.config.json");
+  const write = (data) => writeFileSync(file, typeof data === "string" ? data : JSON.stringify(data), { mode: 0o600 });
+  write(conn);
+  return { dir, file, write, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+}
+
+/** 接続のファイルを使うときの環境変数（OS の KINTONE_* は読まないことも確かめるため、別の接続先を入れておく） */
+export const connEnv = (file, extra = {}) => ({ PCRAFT_PLUGIN_ZIP: ZIP, PCRAFT_KINTONE_CONFIG: file, PCRAFT_TEST_TOKEN_101: TOKENS.dev101, KINTONE_BASE_URL: "https://other.cybozu.com", ...extra });
+
+/** 偽の kintone が記録するトークンの短い digest（トークンそのものはログに書かない） */
+export const tokenHash = (t) => createHash("sha256").update(t).digest("hex").slice(0, 16);
+
+/** 偽の kintone の要求のログ（PCRAFT_TEST_FETCH_LOG） */
+export function fetchLog() {
+  const dir = realpathSync(mkdtempSync(path.join(os.tmpdir(), "pcraft-mcp-fetchlog-")));
+  const file = path.join(dir, "fetch.log");
+  return { file, requests: () => (existsSync(file) ? readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : []), cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+}
+
+/** 秘密の値（試験のトークンすべて）が出ていないか */
+export const leakedTokens = (text) => Object.values(TOKENS).filter((t) => text.includes(t));
 export const saveInput = (root, p, content = SETTINGS_TEXT, extra = {}) => ({ workspaceId: root, path: p, content, fields: "fields/3740.json", expectedAbsent: true, ...extra });

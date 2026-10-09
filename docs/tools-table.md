@@ -1,6 +1,6 @@
 # 画面ごとのツールの表（段階 0-1 ③）
 
-2026-10-09 作成。実装案の 5.1〜5.5 を、ツールごとの約束にした表。承認: Takashi（2026-10-09）。
+2026-10-09 作成。実装案の 5.1〜5.5 を、ツールごとの約束にした表。承認: Takashi（2026-10-09）。2026-10-10、kintone の接続のファイル（実装案 15 章）に合わせて、`env` / `guestSpaceId` の引数を `profile` に、書く先を `kintone/<profile>/<アプリ>/` に直した。
 
 - **種類**: ① 作業フォルダーを使う（`workspaceId` を持つ。照合と互換表の判定を通す）、② 作業フォルダーを使わない（`workspaceId` を持たない。照合も互換表の判定もしない）、③ 作業フォルダーの診断（`workspaceId` を持ち照合は通す。互換表の判定はしない）
 - **出す画面**: 起動の引数 `--surface claude-code | desktop` で決める（プラグインの `.mcp.json` と `.mcpb` の manifest に固定で書く）
@@ -14,21 +14,21 @@
 | ツール | 種類 | Claude Code | Desktop | 読み取りだけ | 入力 | 返すもの | 書く先 | CLI 相当 | 段階 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `pcraft_docs` | ② | 出す | 出す | ○ | `{ section? }` | 引数なし: 目次（1 行目に「この呼び出しに答えたサーバーの版」）。`section`: その章の文章。知らない `section`: 正しい名前の一覧を付けたエラー | — | （資料） | 0-4（相当）、B1 |
-| `pcraft_status` | ② | 出す | 出す | ○ | `{}` | サーバーの版、埋め込んだ中核・資料の版、互換表の判定、設定項目のそろい具合（値は出さない。秘密の値は「設定済み / 未設定」だけ）、`--surface` | — | `version --json` | B1 |
-| `pcraft_workspace_status` | ③ | 出す | 出す | ○ | `{ workspaceId }` | 登録済みか、`environments.json` の有無、環境ごとの `role`（未分類を含む）、印刷屋の zip（ファイル名、読めるか、互換か、印刷屋と authoring API の版、読めない・合わないときの種類 `code`。パスは返さない） | — | （新規） | B1 |
-| `pcraft_save_settings` | ① | 出す | 出す | — | `{ workspaceId, path, content, fields?, expectedAbsent: true }` | `findings`（normalize のエラー・警告・情報）、確定したパス、`digest` | `settings/`、`temp/`、`kintone/<開発>/<アプリ>/`（新しい帳票）。④ | `normalize`（書き戻し） | 0-3b、B1 |
-| `pcraft_update_button` | ① | 出す | 出す | — | `{ workspaceId, path, button, expectedDigest, replacement, fields? }` | `findings`、`digest` | `settings/`、`kintone/<開発>/<アプリ>/*-edit.json`。④ | `normalize`（書き戻し） | B1 |
-| `pcraft_normalize` | ① | 出す | 出す | ○（`check` / `dryRun` だけ） | `{ workspaceId, path, fields?, check? }`（常に書き戻さない） | `findings`、`--check` の差 | — | `normalize --dry-run` / `--check` | B1 |
-| `pcraft_preview` | ① | 出す | 出す | — | `{ workspaceId, path, fields?, record, button? }` | 出したファイル、ページ数、式の誤りの場所と件数（誤りの文・ファイル名・HTML はレコードの値を含みうるので返さない） | `out/`、`kintone/<開発>/<アプリ>/out/`。④ | `preview` | B1 |
+| `pcraft_status` | ② | 出す | 出す | ○ | `{}` | サーバーの版、埋め込んだ中核・資料の版、互換表の判定、作業フォルダーの設定、印刷屋の zip、`capabilities`（`authoring`: zip と互換表、`kintone`: 接続のファイルが設定されていて読めるか、ファイルの名前と理由の `code`）、`--surface`。問題があっても `status` は `ok`（`ready: false`） | — | `version --json` | B1 |
+| `pcraft_workspace_status` | ③ | 出す | 出す | ○ | `{ workspaceId }` | 登録済みか、動く形（`profiles` / `not-configured` / `legacy-blocked`）、接続のファイル（読めるか、既定の profile、profile ごとの接続先・ゲストスペース・認証の種類・`tokenMap` のアプリとトークンが使えるか、使えない profile と理由、警告。秘密の値と環境変数の名前は返さない）、アプリのフォルダーの名前と印の状態、使われていない profile のフォルダー、`environments.json` の有無、印刷屋の zip（ファイル名、読めるか、互換か、版、`code`。パスは返さない）。接続の誤りがあっても `status` は `ok` | — | （新規） | B1 |
+| `pcraft_save_settings` | ① | 出す | 出す | — | `{ workspaceId, path, content, fields?, expectedAbsent: true, profile? }` | `findings`（normalize のエラー・警告・情報）、確定したパス、`digest`、`trustedOrigin`（iframe の接続先のホストか null と理由） | `settings/`、`temp/`、`kintone/<profile>/<アプリ>/`（新しい帳票）。④ | `normalize`（書き戻し） | 0-3b、B1 |
+| `pcraft_update_button` | ① | 出す | 出す | — | `{ workspaceId, path, button, expectedDigest, replacement, fields?, profile? }` | `findings`、`digest`、`trustedOrigin` | `settings/`、`kintone/<profile>/<アプリ>/*-edit.json` など。④ | `normalize`（書き戻し） | B1 |
+| `pcraft_normalize` | ① | 出す | 出す | ○（`check` / `dryRun` だけ） | `{ workspaceId, path, fields?, check?, profile? }`（常に書き戻さない） | `findings`、`--check` の差、`trustedOrigin` | — | `normalize --dry-run` / `--check` | B1 |
+| `pcraft_preview` | ① | 出す | 出す | — | `{ workspaceId, path, fields?, record, button?, profile? }` | 出したファイル、ページ数、式の誤りの場所と件数（誤りの文・ファイル名・HTML はレコードの値を含みうるので返さない）、`trustedOrigin` | `out/`、`kintone/<profile>/<アプリ>/out/`。④ | `preview` | B1 |
 | `pcraft_buttons` | ① | 出す | 出す | ○ | `{ workspaceId, path, button? }` | ボタンの一覧と中身（data: の URL は先頭と長さだけ）、ファイル全体の `digest`、ボタンの識別子（`menu`） | — | `buttons` | B1 |
-| `pcraft_fields` | ① | 出す | 出す | — | `{ workspaceId, app, env?, guestSpaceId?, preview? }` | 要約（1 項目 1 行。`fields --summary`） | `fields/`、`kintone/<アプリ>/fields.json`。④ | `fields` + `fields --summary` | B1 |
-| `pcraft_record` | ① | 出す | 出す | — | `{ workspaceId, app, id, env?, fieldsFrom?, guestSpaceId? }` | 形の要約だけ（値は返さない。`record --summary`） | `records/`、`kintone/<アプリ>/records/`。④ | `record` + `record --summary` | B1 |
-| `kintone_get_app` | ① | **出さない**（公式の kintone MCP） | 出す | ○ | `{ workspaceId, app, env? }`（番号か URL。実装案 5.4） | `appId`、`name`、`code`、`spaceId`、`threadId`（作成者・更新者と説明の全文は返さない） | — | （新規） | B1 |
-| `kintone_list_records` | ① | **出さない**（公式の kintone MCP） | 出す | ○ | `{ workspaceId, app, env?, guestSpaceId?, query? }`（`query` は条件と並べ替えだけ、500 文字まで、`limit` / `offset` を拒否。サーバーが `limit 5` を付ける） | 1 件ごとの形の要約（`$id`、文字数・行数、数値の桁、テーブルの行数、添付の件数と種類）。値・ファイル名・ユーザー名は返さない | — | （新規） | B1 |
-| `pcraft_files` | ① | 出す | 出す | ○ | `{ workspaceId, app?, env? }` | アプリのフォルダーのファイル（今の設定、`-edit.json`、新しい帳票、records、out）。`environments.json` が無ければ `settings/` `temp/` `fields/` `records/` の JSON と `inbox/` の件数。作業フォルダーは名前だけ | — | `files` | B1 |
-| `pcraft_take` | ① | 出す | 出す | — | `{ workspaceId, env? }` | 移したファイル | `inbox/` から `kintone/<アプリ>/`（`inbox/` の元を消す）。④ | `take` | B1 |
-| `pcraft_edit` | ① | 出す | 出す | — | `{ workspaceId, app, env? }` か `{ workspaceId, path }` | 写した `-edit.json` のパス | `kintone/<開発>/<アプリ>/*-edit.json`。④ | `edit` | B1 |
-| `pcraft_pull` | ① | 出す | 出す（運用環境だけ） | — | `{ workspaceId, app, env?, preview?, guestSpaceId? }`（`--force` は受け付けない。Desktop は `preview` を受け付けない） | 保存したファイル | `settings/`、`kintone/<アプリ>/`（新しいファイル名で増やすだけ）。④ | `pull` | B1 |
+| `pcraft_fields` | ① | 出す | 出す | — | `{ workspaceId, app, profile?, preview? }`（`app` は番号） | 要約（1 項目 1 行。`fields --summary`）、profile、接続先 | `kintone/<profile>/<アプリ>/fields.json`（フォルダーが無ければ印を置いて作る）。④ | `fields` + `fields --summary` | B1 |
+| `pcraft_record` | ① | 出す | 出す | — | `{ workspaceId, app, id, profile?, fieldsFrom? }` | 形の要約だけ（値は返さない。`record --summary`） | `kintone/<profile>/<アプリ>/records/`（フォルダーが無ければ「先に `pcraft_fields`」）。④ | `record` + `record --summary` | B1 |
+| `kintone_get_app` | ① | **出さない**（公式の kintone MCP） | 出す | ○ | `{ workspaceId, app, profile? }`（番号か URL。URL は profile の接続先とゲストスペースが同じもの。実装案 5.4、15.8） | `appId`、`name`、`code`、`spaceId`、`threadId`、profile（作成者・更新者と説明の全文は返さない） | — | （新規） | B1 |
+| `kintone_list_records` | ① | **出さない**（公式の kintone MCP） | 出す | ○ | `{ workspaceId, app, query?, profile? }`（`query` は条件と並べ替えだけ、500 文字まで、`limit` / `offset` を拒否。サーバーが `limit 5` を付ける） | 1 件ごとの形の要約（`$id`、文字数・行数、数値の桁、テーブルの行数、添付の件数と種類）。値・ファイル名・ユーザー名は返さない | — | （新規） | B1 |
+| `pcraft_files` | ① | 出す | 出す | ○ | `{ workspaceId, app?, profile? }` | `app` あり: そのアプリのフォルダーのファイル（今の設定、`-edit.json`、新しい帳票、records、out）。`app` なし: profile ごとのアプリのフォルダーの名前と印の状態、使われていない profile のフォルダー、`settings/` `temp/` `fields/` `records/` の JSON、`inbox/` の件数。作業フォルダーは名前だけ | — | `files` | B1 |
+| `pcraft_take` | ① | 出す | 出す | — | `{ workspaceId, profile? }` | 移したファイル | `inbox/` から `kintone/<profile>/<アプリ>/`（`inbox/` の元を消す）。④ | `take` | B1 |
+| `pcraft_edit` | ① | 出す | 出す | — | `{ workspaceId, app, profile? }` か `{ workspaceId, path }` | 写した `-edit.json` のパス | `kintone/<profile>/<アプリ>/*-edit.json`。④ | `edit` | B1 |
+| `pcraft_pull` | ① | 出す | 出す（運用環境だけ） | — | `{ workspaceId, app, profile?, preview? }`（`--force` は受け付けない。Desktop は `preview` を受け付けない） | 保存したファイル、ボタンの一覧、`digest` | `kintone/<profile>/<アプリ>/`（新しいファイル名で増やすだけ。フォルダーが無ければ印を置いて作る）。④ | `pull` | B1 |
 | `pcraft_diff` | ① | 出す | 出す | ○ | `{ workspaceId, before, after, derived? }` | ボタン単位の差分 | — | `diff` | B1 |
 
 `pcraft_pull` は kintone の API ラボ（プラグインの設定情報を取得する API）を有効にした環境だけで動く。この API は API トークンで使える API の一覧に載っていないが、**閲覧だけの API トークンで運用環境の設定を取れた**（2026-10-09 試作 0-4）。動作テスト環境（`preview`）はアプリ管理の権限が要るので、Desktop では受け付けない。失敗したら印刷屋の設定画面でダウンロード → `inbox/` → `pcraft_take` を案内する（② api-table.md 3 章）。

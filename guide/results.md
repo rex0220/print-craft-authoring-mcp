@@ -7,20 +7,20 @@
 | status | 意味 | すること |
 | --- | --- | --- |
 | `ok` | できた。`findings` に警告・情報があることがある | 警告は消さずに利用者に伝える |
-| `invalid` | 設定の検査（normalize）のエラー、入力の誤り（項目定義のファイルが無い、JSON として読めない、ボタンの名前が無い、パスの形が違う（`./`・末尾の `/`・`//`）など） | `findings` のエラーと `error.message` を読んで直す |
+| `invalid` | 設定の検査（normalize）のエラー、入力の誤り（項目定義のファイルが無い、JSON として読めない、ボタンの名前が無い、パスの形が違う（`./`・末尾の `/`・`//`）、接続のファイルに無い profile（`unknown-profile`）、アプリの URL のゲストスペースが profile と違う（`guest-mismatch`）など） | `findings` のエラーと `error.message` を読んで直す |
 | `incompatible` | print-craft MCP と合わない（印刷屋の zip の版が対応外、authoring API の版、互換表） | `error.message` のとおり利用者に頼む（print-craft MCP の更新か、アプリに入れたものと同じ版の zip） |
-| `conflict` | 同じ名前のファイルがある（新しい設定の保存は上書きしない）、読んだ後にファイルが変わった（digest が違う）、別の保存が進行中 | 新しい設定なら別の名前に。既存のボタンを直すなら `pcraft_buttons` で読み直して `pcraft_update_button` |
+| `conflict` | 同じ名前のファイルがある（新しい設定の保存は上書きしない）、読んだ後にファイルが変わった（digest が違う）、別の保存が進行中、アプリのフォルダーの印が今の接続のものでない（`app-marker-missing` / `app-marker-invalid` / `app-identity-conflict`）、呼び出しの途中で接続のファイルが変わった（`connection-changed`）、同じ番号のアプリのフォルダーが 2 つ | 新しい設定なら別の名前に。既存のボタンを直すなら `pcraft_buttons` で読み直して `pcraft_update_button`。印・フォルダーの食い違いは利用者に伝える（`connections`） |
 | `denied` | 断った（下の「断る場合」） | 利用者に伝える。回り道をしない（Bash や別のツールで書かない） |
-| `failed` | 印刷屋の zip が無い・読めない・読み込んだものと違う・前に読み込みに失敗した（zip を変えた・直したら再接続）、帳票を描けなかった（`RenderError`。誤りの文はレコードの値を含みうるので返らない）、kintone の誤り（HTTP の状態とエラーコード）、想定外の失敗 | `error.message` を利用者に伝える |
+| `failed` | 印刷屋の zip が無い・読めない・読み込んだものと違う・前に読み込みに失敗した（zip を変えた・直したら再接続）、kintone の接続のファイルが無い・読めない・profile やトークンが使えない（`error.code` が `not-configured`、`unreadable`、`legacy-config-present`、`no-default-profile`、`profile-invalid`、`no-token`、`env-missing`、`no-userpass`）、帳票を描けなかった（`RenderError`。誤りの文はレコードの値を含みうるので返らない）、kintone の誤り（HTTP の状態とエラーコード）、想定外の失敗 | `error.message` を利用者に伝える（接続のファイルは利用者が直す。AI は読まない・書かない） |
 
 ## 断る場合（denied）
 
 - 作業フォルダーの外、`.env` などの読まないファイル。パスは作業フォルダーからの相対パスだけ（絶対パス・ドライブ名・`~`・`\`・`..` は断る。区切りは `/`）
-- 作業フォルダーの外を指すフォルダーと `environments.json`（symlink など。リンク切れも）
+- 作業フォルダーの外を指すフォルダー（symlink など。リンク切れも）
 - 登録していない作業フォルダー（Claude Code。登録したばかりなら `/mcp` で print-craft を再接続）
-- 書けない場所（設定は `settings/` `temp/` と、開発の環境のアプリのフォルダー `kintone/<ホスト名>/<番号>-<アプリ名>/` だけ）
-- 本番（`environments.json` の `role: production`）のアプリのフォルダーを変えること（本番のフォルダーは今の設定を見るためだけ。作るのも直すのも開発の環境）
-- `role` の無い環境のフォルダー、`environments.json` が無いのに `kintone/` の下（利用者が `environments.json` に `role` を書くまで変えない）
+- 書けない場所（設定は `settings/` `temp/` と、アプリのフォルダー `kintone/<profile>/<番号>-<アプリ名>/` だけ。アプリのフォルダーの `.` で始まるファイル（印）には書かない）
+- 接続のファイルに無い profile のフォルダー、接続のファイルが無いときの `kintone/` の下
+- 作業フォルダーの中に置いた接続のファイル（`inside-workspace`。利用者に作業フォルダーの外へ移してもらう）
 - ダウンロード / pull のファイル（`rex0220-print-craft-app<番号>-<日時>.json`）を書き換えること
 
 ## normalize のエラー（invalid の findings。rule の名前）

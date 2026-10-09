@@ -9,7 +9,8 @@ import { z } from "zod";
 import { MAX_SAVE_INPUT_BYTES, updateButton } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { fromSaveResult, isToolResult, prepare, workspaceIdSchema } from "./common.ts";
-import { checkRelPaths, fromError, trustedBaseUrl } from "./files.ts";
+import { checkRelPaths, fromError, originFields, trustedOrigin } from "./files.ts";
+import { profileSchema } from "./kintone.ts";
 
 export function registerUpdateButton(server: McpServer, ctx: ServerContext): void {
   server.registerTool(
@@ -27,7 +28,8 @@ export function registerUpdateButton(server: McpServer, ctx: ServerContext): voi
           button: z.string().min(1).max(200).describe("差し替えるボタンの名前（menu）。無ければ末尾に足す"),
           expectedDigest: z.string().regex(/^[0-9a-f]{64}$/).describe("pcraft_buttons が返した digest（sha256 の 16 進 64 文字）"),
           replacement: z.string().min(1).max(MAX_SAVE_INPUT_BYTES).describe("ボタン 1 つ（pluginInfos の 1 行）の JSON。menu は button と同じ。UTF-8 で 256 KiB まで"),
-          fields: z.string().min(1).max(512).optional().describe("項目定義のファイル（作業フォルダーからの相対パス）。アプリのフォルダー kintone/… の中の設定なら省略する")
+          fields: z.string().min(1).max(512).optional().describe("項目定義のファイル（作業フォルダーからの相対パス）。アプリのフォルダー kintone/… の中の設定なら省略する"),
+          profile: profileSchema.describe("kintone の接続のファイルの profile（preview の iframe と外部 URL の判定に使う接続先。アプリのフォルダー kintone/<profile>/… の中のファイルは省略する。省略すると defaultProfile、無ければ dev。決まらなければ接続先なし）"),
         })
         .strict(),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
@@ -38,12 +40,12 @@ export function registerUpdateButton(server: McpServer, ctx: ServerContext): voi
           checkRelPaths({ path: input.path, fields: input.fields });
           const w = await prepare(ctx, input.workspaceId);
           if (isToolResult(w)) return w;
-          const baseUrl = trustedBaseUrl(ctx, w.root, path.resolve(w.root, input.path));
+          const origin = trustedOrigin(w.mode, w.root, path.resolve(w.root, input.path), input.profile);
           const r = await updateButton(
-            { root: w.root, engine: w.engine, policy: w.policy, baseUrl },
+            { root: w.root, engine: w.engine, policy: w.policy, baseUrl: origin.baseUrl, mode: w.mode },
             { path: input.path, button: input.button, expectedDigest: input.expectedDigest, replacement: input.replacement, fields: input.fields }
           );
-          return fromSaveResult(r);
+          return fromSaveResult(r, originFields(origin));
         } catch (e) {
           return fromError(e);
         }

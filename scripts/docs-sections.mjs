@@ -9,7 +9,7 @@ export const DOC_SECTIONS = [
   { key: "constraints", title: "制約（守らないと動かない・壊れる）", guide: "constraints.md" },
   { key: "usable", title: "使えるもの（関数・CSS の class・置き換えタグ）", guide: "usable.md" },
   { key: "deploy", title: "反映方法（設定画面でアップロード）", guide: "deploy.md" },
-  { key: "environments", title: "開発と本番（environments.json があるとき）", guide: "environments.md" },
+  { key: "connections", title: "kintone の接続とアプリのフォルダー（接続のファイル。profile、kintone/<profile>/<番号>-<アプリ名>/）", guide: "connections.md" },
   { key: "recipes", title: "帳票レシピ集（0 章が既定の形。R1 見積書 … R7 Web フォント）", ref: "docs/帳票レシピ集.md" },
   { key: "report-functions", title: "印刷屋の関数・置き換えタグ・エスケープ", ref: "docs/帳票関数リファレンス.md" },
   { key: "spec", title: "設定ファイル仕様（キーの意味・列挙・上限）", ref: "docs/設定ファイル仕様.md" },

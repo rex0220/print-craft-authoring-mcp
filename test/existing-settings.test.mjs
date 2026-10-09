@@ -1,12 +1,13 @@
 // 既存の設定を扱うツール（実装案 5.1、5.3）: pcraft_buttons（一覧・中身・digest）、pcraft_update_button（digest の照合、差し替え・追加）、
-// pcraft_normalize（書き換えない検査、check）、pcraft_preview（out/ に書き、HTML は返さない。本番のアプリのフォルダーは作業フォルダーの out/）
+// pcraft_normalize（書き換えない検査、check）、pcraft_preview（out/ に書き、HTML は返さない。アプリのフォルダーの設定はそのフォルダーの out/）
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { FIELDS_TEXT, SKIP as skip, connectClaudeCode, makeWorkspace, saveInput, sc, settings } from "./helpers.mjs";
+import * as core from "@rex0220/print-craft-authoring-tools/core";
+import { FIELDS_TEXT, SKIP as skip, connEnv, connectClaudeCode, makeConn, makeWorkspace, saveInput, sc, settings } from "./helpers.mjs";
 
 const RECORD_TEXT = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "record-3740-3.json"), "utf8");
 const sha = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
@@ -101,9 +102,10 @@ test("pcraft_normalize: 書き換えない。警告を返す。check で派生�
   }
 });
 
-test("pcraft_preview: out/ に書き、ページ数を返す（HTML とレコードの値は返さない）。設定にエラーがあれば書かない。本番のアプリのフォルダーの設定は作業フォルダーの out/", { skip }, async () => {
+test("pcraft_preview: out/ に書き、ページ数を返す（HTML とレコードの値は返さない）。設定にエラーがあれば書かない。アプリのフォルダーの設定は同じフォルダーの fields.json・records/3.json・out/", { skip }, async () => {
   const root = makeWorkspace();
-  const s = await connectClaudeCode([root]);
+  const conn = makeConn();
+  const s = await connectClaudeCode([root], connEnv(conn.file));
   try {
     await prepared(s, root);
     const r = await s.call("pcraft_preview", { workspaceId: root, path: "settings/見積書.json", record: "records/3740-3.json", fields: "fields/3740.json" });
@@ -119,18 +121,26 @@ test("pcraft_preview: out/ に書き、ページ数を返す（HTML とレコー
     assert.equal(bad.status, "invalid");
     assert.ok(!readdirSync(path.join(root, "out")).some((n) => n.includes("壊れた")), "エラーがあれば書かない");
 
-    writeFileSync(path.join(root, "environments.json"), JSON.stringify({ environments: { prod: { baseUrl: "https://x.cybozu.com", role: "production" } } }));
-    const prodDir = path.join(root, "kintone", "x.cybozu.com", "3740-見積書");
+    assert.equal(sc(r).result.trustedOrigin, "dev-x.cybozu.com", "settings/ は既定の profile の接続先");
+
+    // アプリのフォルダー（印は中核が作る。prod の profile。本番の保護は無い。15.1 の 3）
+    const set = core.loadConnections(conn.file, { workspaceRoots: [root], env: {} });
+    const prodDir = path.join(root, "kintone", "prod", "3740-見積書");
+    core.ensureAppFolder(prodDir, core.pickProfile(set, "prod"), 3740);
     mkdirSync(path.join(prodDir, "records"), { recursive: true });
     writeFileSync(path.join(prodDir, "fields.json"), FIELDS_TEXT);
     writeFileSync(path.join(prodDir, "records", "3.json"), RECORD_TEXT);
     writeFileSync(path.join(prodDir, "rex0220-print-craft-app3740-20261005-125115.json"), settings({ pluginInfos: [{ ...JSON.parse(button()), menu: "本番の見積書" }] }));
-    const prod = sc(await s.call("pcraft_preview", { workspaceId: root, path: "kintone/x.cybozu.com/3740-見積書/rex0220-print-craft-app3740-20261005-125115.json", record: "3" }));
+    const prod = sc(await s.call("pcraft_preview", { workspaceId: root, path: "kintone/prod/3740-見積書/rex0220-print-craft-app3740-20261005-125115.json", record: "3" }));
     assert.equal(prod.status, "ok", JSON.stringify(prod));
-    assert.match(prod.result.results[0].file, /^out\//, "本番のアプリのフォルダーの out/ には書かない（4.2 の P9）");
-    assert.ok(!existsSync(path.join(prodDir, "out")));
+    assert.match(prod.result.results[0].file, /^kintone\/prod\/3740-見積書\/out\//, "アプリのフォルダーの out/");
+    assert.equal(prod.result.trustedOrigin, "x.cybozu.com", "アプリのフォルダーはその profile の接続先");
+    const noRecord = sc(await s.call("pcraft_preview", { workspaceId: root, path: "kintone/prod/3740-見積書/rex0220-print-craft-app3740-20261005-125115.json", record: "4" }));
+    assert.deepEqual([noRecord.status, noRecord.error.code], ["invalid", "InputError"]);
+    assert.match(noRecord.error.message, /pcraft_record で取る/);
   } finally {
     await s.close();
+    conn.cleanup();
     rmSync(root, { recursive: true, force: true });
   }
 });

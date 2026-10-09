@@ -1,63 +1,77 @@
 /**
  * kintone への接続（GET だけ。中核の createRestClient: 許可した API だけ、送信先は接続先だけ、受け取る量に上限）。
- *   - environments.json が無いとき: 設定項目（環境変数 KINTONE_*）か作業フォルダーの .env（今の CLI と同じ。loadAuth）
- *   - environments.json があるとき: その環境の envFile だけ（OS の環境変数・設定項目は読まない。開発と本番の取り違えを防ぐ。実装案 6.4）
- *   - アプリは番号、environments.json があれば apps の名前も。Desktop のツールはアプリの URL も（オリジンが接続先と同じときだけ。5.4）
+ * 中核 2.0.0（実装案 15 章）: kintone の接続のファイル（kSQL の ksql.config.json と同じ形。設定項目 kintoneConfig）の profile だけを使う。
+ *   - profile は引数、無ければ defaultProfile、無ければ dev（kSQL と同じ）。ゲストスペースは profile の guestSpaceId（1 つの profile は 1 つのスペース）
+ *   - 認証はその profile のそのアプリの tokenMap か、ログイン名とパスワード。作業フォルダーの .env の KINTONE_* と environments.json は読まない
+ *   - アプリは番号。Desktop のツールはアプリの URL も（オリジンが profile の接続先と同じで、ゲストスペースが profile と同じときだけ。5.4、15.8）
  * 秘密の値は応答に入れない（中核の誤りの文も、HTTP の状態と kintone のエラーコードと決まったヒントだけ）
  */
 import { z } from "zod";
-import { InputError, createRestClient, describeAuth, loadAuth, loadAuthForEnv, loadWorkspace, pickEnv, resolveApp, type EnvironmentDef, type RestClient, type Workspace } from "../core.ts";
+import {
+  ConnectionError,
+  InputError,
+  PROFILE_NAME_RE,
+  authFor,
+  createRestClient,
+  describeAuth,
+  pickProfile,
+  requireProfiles,
+  type ConnectionSet,
+  type ProfileDef,
+  type RestClient,
+  type WorkspaceMode
+} from "../core.ts";
 import type { ServerContext } from "../context.ts";
 
-export interface KintoneTarget {
+/** 使う profile（呼び出しの初めに読んだ接続） */
+export interface ProfileTarget {
+  mode: WorkspaceMode;
+  set: ConnectionSet;
+  def: ProfileDef;
+}
+
+export interface KintoneTarget extends ProfileTarget {
   client: RestClient;
   authLabel: string;
-  ws: Workspace | null;
-  env?: EnvironmentDef;
-}
-
-/** 接続先と認証を決める（environments.json があればその環境の envFile だけ） */
-export function kintoneFor(ctx: ServerContext, root: string, envName: string | undefined): KintoneTarget {
-  const ws = loadWorkspace(root);
-  if (envName !== undefined && !ws) throw new InputError("env は作業フォルダーに environments.json があるときだけ使える");
-  const env = ws ? pickEnv(ws, envName) : undefined;
-  const auth = ws && env ? loadAuthForEnv(env, root) : loadAuth({ cwd: root, env: ctx.env });
-  return { client: createRestClient(auth), authLabel: describeAuth(auth), ws, env };
-}
-
-/** アプリの指定: 番号、または environments.json の apps の名前 */
-export const appSchema = z
-  .union([z.number().int().positive(), z.string().min(1).max(200)])
-  .describe("アプリの番号（environments.json があれば apps の名前も）");
-
-export const envSchema = z
-  .string()
-  .regex(/^[A-Za-z0-9_-]{1,40}$/)
-  .optional()
-  .describe("environments.json の環境の名前（省略すると既定の環境。environments.json があるときだけ）");
-
-/** アプリの番号に直す（名前は environments.json の apps から。無ければ番号だけ） */
-export function appIdOf(target: KintoneTarget, app: number | string): number {
-  if (typeof app === "number") return app;
-  if (target.ws && target.env) return resolveApp(target.ws, target.env, app).appId;
-  if (/^\d+$/.test(app) && Number(app) > 0 && Number.isSafeInteger(Number(app))) return Number(app);
-  throw new InputError(`アプリは番号で指定する（environments.json があれば apps の名前も）: ${app}`);
-}
-
-export interface AppRef {
-  appId: number;
+  /** profile のゲストスペース（通常のスペースは無い） */
   guestSpaceId?: number;
 }
 
+/** 使う profile を決める（接続のファイルが無い・移行で止まっていれば ConnectionError）。mode は呼び出しの初めに読んだもの */
+export function profileOf(mode: WorkspaceMode, profile: string | undefined): ProfileTarget {
+  const conn = requireProfiles(mode, "kintone の操作");
+  return { mode, set: conn.set, def: pickProfile(conn.set, profile) };
+}
+
+/** 接続のファイルを読んで、使う profile を決める */
+export function profileFor(ctx: ServerContext, root: string, profile: string | undefined): ProfileTarget {
+  return profileOf(ctx.mode(root), profile);
+}
+
+/** その profile のそのアプリの認証で kintone に接続する */
+export function kintoneFor(t: ProfileTarget, appId: number): KintoneTarget {
+  const auth = authFor(t.set, t.def, appId);
+  return { ...t, client: createRestClient(auth), authLabel: `${describeAuth(auth)}（profile ${t.def.profile}）`, ...(t.def.guestSpaceId ? { guestSpaceId: t.def.guestSpaceId } : {}) };
+}
+
+export const appSchema = z.number().int().positive().describe("アプリの番号");
+
+export const profileSchema = z
+  .string()
+  .regex(PROFILE_NAME_RE)
+  .optional()
+  .describe("kintone の接続のファイルの profile の名前（省略すると defaultProfile、無ければ dev）");
+
 /**
- * Desktop のツールのアプリの指定: 番号か、アプリの URL（https、オリジンが接続先と同じ、/k/<番号>/ か /k/guest/<スペース>/<番号>/。
- * ユーザー名・パスワードの部分があれば断る。query と fragment は見ない。実装案 5.4）
+ * Desktop のツールのアプリの指定: 番号か、アプリの URL（https、オリジンが profile の接続先と同じ、/k/<番号>/ か /k/guest/<スペース>/<番号>/。
+ * URL のゲストスペースは profile の guestSpaceId と同じとき（通常の URL を guest の profile に、guest の URL を通常の profile に渡すと guest-mismatch）。
+ * ユーザー名・パスワードの部分があれば断る。query と fragment は見ない（5.4、15.8）
  */
-export function appRefOf(app: number | string, baseUrl: string): AppRef {
-  if (typeof app === "number") return { appId: app };
+export function appRefOf(app: number | string, def: ProfileDef): number {
+  if (typeof app === "number") return app;
   if (/^\d+$/.test(app)) {
     const n = Number(app);
-    if (n > 0 && Number.isSafeInteger(n)) return { appId: n };
+    if (n > 0 && Number.isSafeInteger(n)) return n;
   }
   let u: URL;
   try {
@@ -66,11 +80,20 @@ export function appRefOf(app: number | string, baseUrl: string): AppRef {
     throw new InputError("アプリは番号か、アプリの URL（https://<サブドメイン>.cybozu.com/k/<番号>/）で指定する");
   }
   if (u.username || u.password) throw new InputError("アプリの URL にユーザー名・パスワードの部分は書かない");
-  if (u.protocol !== "https:" || u.origin !== new URL(baseUrl).origin) throw new InputError(`アプリの URL が接続先（${new URL(baseUrl).origin}）のものでない（別の環境の URL から番号だけを使わない）`);
+  const origin = new URL(def.baseUrl).origin;
+  if (u.protocol !== "https:" || u.origin !== origin) throw new InputError(`アプリの URL が profile「${def.profile}」の接続先（${origin}）のものでない（別の接続先の URL から番号だけを使わない）`);
   const m = u.pathname.match(/^\/k\/(?:guest\/(\d+)\/)?(\d+)\/?$/);
   if (!m) throw new InputError("アプリの URL は /k/<番号>/ か /k/guest/<スペース>/<番号>/ の形");
   const appId = Number(m[2]);
-  const guestSpaceId = m[1] ? Number(m[1]) : undefined;
-  if (!Number.isSafeInteger(appId) || appId <= 0 || (guestSpaceId !== undefined && (!Number.isSafeInteger(guestSpaceId) || guestSpaceId <= 0))) throw new InputError("アプリの URL の番号が正の整数でない");
-  return guestSpaceId ? { appId, guestSpaceId } : { appId };
+  const guest = m[1] ? Number(m[1]) : null;
+  if (!Number.isSafeInteger(appId) || appId <= 0 || (guest !== null && (!Number.isSafeInteger(guest) || guest <= 0))) throw new InputError("アプリの URL の番号が正の整数でない");
+  if (guest !== def.guestSpaceId) {
+    throw new ConnectionError(
+      guest !== null
+        ? `アプリの URL はゲストスペース ${guest} のもの。profile「${def.profile}」は${def.guestSpaceId ? `ゲストスペース ${def.guestSpaceId}` : "通常のスペース"}の接続（ゲストスペースごとに profile を分ける）`
+        : `profile「${def.profile}」はゲストスペース ${def.guestSpaceId} の接続。通常のスペースのアプリの URL は使えない（profile を分ける）`,
+      "guest-mismatch"
+    );
+  }
+  return appId;
 }

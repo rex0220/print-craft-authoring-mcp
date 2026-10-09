@@ -156,6 +156,15 @@ export class WorkspaceBinding {
     return this.desktop;
   }
 
+  /** このサーバーが知っている作業フォルダー（kintone の接続のファイルがこの中にあれば使わない。実装案 15.3） */
+  knownRoots(): string[] {
+    if (this.args.surface === "desktop") {
+      const root = this.desktopWorkspace().root;
+      return root ? [root] : [];
+    }
+    return [...this.registered.roots];
+  }
+
   /** ツールの workspaceId から作業フォルダーの実際のパスを決める。だめなら WorkspaceError */
   resolve(workspaceId: string | undefined): string {
     if (this.args.surface === "desktop") {

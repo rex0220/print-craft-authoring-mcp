@@ -1,8 +1,8 @@
 // .mcpb の検査（実装案 8.3。試作 0-3b / 0-4 と kSQL の mcpb-verify.mjs を元にした）。
 //   1. zip を開いて、要るファイル・入れてはいけないもの・manifest の値（版、起動の形、設定項目の種類、秘密の値は env で渡すこと）
 //   2. 展開して、Desktop と同じ形（node server/index.cjs + 引数 + 環境変数、起動の場所はドライブのいちばん上）で起動し、MCP のクライアント（SDK v2）で話す:
-//      指示の 1 行目に版、ツールの一覧が manifest と同じ（厳しいスキーマ）、pcraft_docs の目次、pcraft_status、保存の ok / conflict / denied、
-//      試験用の API トークンが引数・応答・標準エラーに出ないこと
+//      指示の 1 行目に版、ツールの一覧が manifest と同じ（厳しいスキーマ）、pcraft_docs の目次、pcraft_status、pcraft_workspace_status、保存の ok / conflict / denied、
+//      kintone の接続のファイル（作業フォルダーの外）に書いた試験用の API トークンが引数・応答・標準エラーに出ないこと
 // 使い方: node build-mcp.mjs && node build-mcpb.mjs && node scripts/mcpb-verify.mjs（印刷屋の zip は PCRAFT_TEST_PLUGIN_ZIP か隣の print-craft の dist/print-craft-plugin7.zip）
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -57,13 +57,14 @@ async function main() {
   assert(manifest.version === pkg.version, "manifest の版が package.json と違う");
   assert(manifest.server?.type === "node" && manifest.server.entry_point === "server/index.cjs", "server の形");
   assert(manifest.server.mcp_config.args[0] === "${__dirname}/server/index.cjs", "起動のファイル");
-  assert(!manifest.server.mcp_config.args.some((a) => /kintoneApiToken|pluginZip/.test(a)), "秘密の値と zip を引数に入れない（env で渡す）");
-  assert(manifest.server.mcp_config.env?.KINTONE_API_TOKEN === "${user_config.kintoneApiToken}", "API トークンは env で渡す");
+  assert(!manifest.server.mcp_config.args.some((a) => /kintoneConfig|pluginZip/.test(a)), "zip と接続のファイルを引数に入れない（env で渡す）");
+  assert(manifest.server.mcp_config.env?.PCRAFT_KINTONE_CONFIG === "${user_config.kintoneConfig}", "接続のファイルは env で渡す");
+  assert(!Object.keys(manifest.server.mcp_config.env).some((k) => /^KINTONE_/.test(k)), "kintone の URL・トークンを設定項目で渡さない（接続のファイルだけ。15.4）");
   assert(manifest.user_config.workspaceDir?.type === "directory" && manifest.user_config.workspaceDir.required === true, "workspaceDir は必須のフォルダー");
   assert(manifest.user_config.pluginZip?.type === "file" && manifest.user_config.pluginZip.required === true, "pluginZip は必須のファイル");
-  assert(manifest.user_config.kintoneApiToken?.sensitive === true, "API トークンは sensitive");
-  // 設定項目の必須と秘密の印（実装案 6.1: Desktop は URL と API トークンも必須。Codex の B1 レビュー MAJOR 5）
-  for (const k of ["workspaceDir", "pluginZip", "kintoneBaseUrl", "kintoneApiToken"]) assert(manifest.user_config[k]?.required === true, `${k} は必須`);
+  // 接続のファイルは任意（無ければ kintone を使わないツールだけが動く。r3 MAJOR 4）
+  assert(manifest.user_config.kintoneConfig?.type === "file" && manifest.user_config.kintoneConfig.required === false, "kintoneConfig は任意のファイル");
+  assert(JSON.stringify(Object.keys(manifest.user_config).sort()) === JSON.stringify(["kintoneConfig", "pluginZip", "workspaceDir"]), "設定項目は作業フォルダー・zip・接続のファイルだけ");
   for (const [k, v] of Object.entries(manifest.user_config)) assert((v.sensitive === true) === /token|password|username/i.test(k), `${k} の sensitive（秘密の値の項目だけ）`);
   const plugin = JSON.parse(readFileSync(path.join(root, ".claude-plugin", "plugin.json"), "utf8"));
   for (const [k, v] of Object.entries(plugin.userConfig)) assert((v.sensitive === true) === /token|password|username/i.test(k), `プラグインの ${k} の sensitive（秘密の値の項目だけ）`);
@@ -80,10 +81,13 @@ async function main() {
     writeFileSync(path.join(bundleDir, p), data);
   }
   const workspace = path.join(realpathSync(tmp), "workspace"); // 無いフォルダー（最後の 1 段を作る）
+  // kintone の接続のファイル（作業フォルダーの外。kSQL の形。トークンを直接書いた試験の値）
+  const connFile = path.join(realpathSync(tmp), "ksql.config.json");
+  writeFileSync(connFile, JSON.stringify({ defaultProfile: "dev", profiles: { dev: { baseUrl: "https://x.cybozu.com", tokenMap: { APP3740: TEST_TOKEN } } } }), { mode: 0o600 });
   const argv = manifest.server.mcp_config.args.map((a) => a.replace("${__dirname}", bundleDir).replace("${user_config.workspaceDir}", workspace));
   const env = { PATH: process.env.PATH ?? "" };
   for (const [k, v] of Object.entries(manifest.server.mcp_config.env)) {
-    env[k] = v.replace("${user_config.pluginZip}", ZIP).replace("${user_config.kintoneBaseUrl}", "https://x.cybozu.com").replace("${user_config.kintoneApiToken}", TEST_TOKEN);
+    env[k] = v.replace("${user_config.pluginZip}", ZIP).replace("${user_config.kintoneConfig}", connFile);
   }
   const transport = new StdioClientTransport({ command: process.execPath, args: argv, env, cwd: path.parse(process.cwd()).root, stderr: "pipe" });
   let stderr = "";
@@ -107,7 +111,10 @@ async function main() {
     const st = (await call("pcraft_status", {})).structuredContent;
     assert(st.result.ready === true && st.result.workspace.name === path.basename(workspace) && existsSync(workspace), `作業フォルダーを作って準備ができた: ${JSON.stringify(st.result.next)}`);
     assert(st.result.pluginZip.readable === true && st.result.pluginZip.compatible === true, "印刷屋の zip を読めて互換");
-    assert(!JSON.stringify(st).includes(workspace) && !JSON.stringify(st).includes(ZIP), "診断は絶対パスを返さない");
+    assert(!JSON.stringify(st).includes(workspace) && !JSON.stringify(st).includes(ZIP) && !JSON.stringify(st).includes(connFile), "診断は絶対パスを返さない");
+    assert(st.result.capabilities?.kintone?.ready === true && st.result.capabilities.kintone.fileName === "ksql.config.json", `接続のファイルを読めた: ${JSON.stringify(st.result.capabilities)}`);
+    const ws = (await call("pcraft_workspace_status", {})).structuredContent;
+    assert(ws.status === "ok" && ws.result.mode === "profiles" && ws.result.connection.profiles?.[0]?.tokenApps?.[0]?.ready === true, `作業フォルダーの診断で profile が見える: ${JSON.stringify(ws.result.connection)}`);
     mkdirSync(path.join(workspace, "fields"));
     writeFileSync(path.join(workspace, "fields", "3740.json"), readFileSync(path.join(root, "test", "fixtures", "fields-3740.json")));
     const input = { path: "settings/APP3740-見積書-見積書.json", content: readFileSync(path.join(root, "test", "fixtures", "settings-mitsumori.json"), "utf8"), fields: "fields/3740.json", expectedAbsent: true };
@@ -118,7 +125,7 @@ async function main() {
   } finally {
     await client.close();
   }
-  assert(!argv.some((a) => a.includes(TEST_TOKEN)), "引数にトークンが無い");
+  assert(!argv.some((a) => a.includes(TEST_TOKEN)) && !Object.values(env).some((v) => v.includes(TEST_TOKEN)), "引数と環境変数にトークンが無い（接続のファイルだけ）");
   assert(!seen.join("\n").includes(TEST_TOKEN), "応答にトークンが出ない");
   assert(!stderr.includes(TEST_TOKEN), "標準エラーにトークンが出ない");
   assert(stderr.includes("作業フォルダーを作った"), "作ったことは標準エラーに出す（Desktop の main.log）");

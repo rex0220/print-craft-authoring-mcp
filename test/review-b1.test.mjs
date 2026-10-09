@@ -7,10 +7,10 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpath
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { FIELDS_TEXT, SETTINGS_TEXT, SKIP as skip, ZIP, connectClaudeCode, makeWorkspace, saveInput, sc, settings } from "./helpers.mjs";
+import * as core from "@rex0220/print-craft-authoring-tools/core";
+import { FIELDS_TEXT, SETTINGS_TEXT, SKIP as skip, ZIP, connEnv, connectClaudeCode, makeConn, makeWorkspace, saveInput, sc, settings } from "./helpers.mjs";
 
 const RECORD_TEXT = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "record-3740-3.json"), "utf8");
-const ENV = { PCRAFT_PLUGIN_ZIP: ZIP, KINTONE_BASE_URL: "https://x.cybozu.com", KINTONE_API_TOKEN: "test-token" };
 const SECRET = "外の秘密";
 
 /** 作業フォルダーの外のフォルダー（名前に SECRET を含むファイルとフォルダー） */
@@ -23,44 +23,43 @@ function outside() {
   return dir;
 }
 
-function devWorkspace() {
-  const root = makeWorkspace();
-  writeFileSync(path.join(root, ".env"), "KINTONE_BASE_URL=https://dev-x.cybozu.com\nKINTONE_API_TOKEN=dev-token\n");
-  writeFileSync(path.join(root, "environments.json"), JSON.stringify({ default: "dev", environments: { dev: { baseUrl: "https://dev-x.cybozu.com", role: "development" } }, apps: [{ name: "見積書", dev: 101 }] }));
-  return root;
-}
-
-test("BLOCKER 1: kintone/<ホスト名>・アプリのフォルダー・records・inbox が外への symlink なら、一覧を作らずに denied（外の名前を返さない）", { skip }, async () => {
+test("BLOCKER 1: kintone/<profile>・アプリのフォルダー・records・inbox が外への symlink なら、一覧を作らず・kintone に送らずに断る（外の名前を返さない）", { skip }, async () => {
   const out = outside();
+  const conn = makeConn();
+  const dev = core.pickProfile(core.loadConnections(conn.file, { workspaceRoots: [], env: {} }), "dev");
   const cases = [
-    ["ホストのフォルダー", (root) => symlinkSync(out, path.join(root, "kintone", "dev-x.cybozu.com"))],
+    ["profile のフォルダー", (root) => {
+      mkdirSync(path.join(root, "kintone"));
+      symlinkSync(out, path.join(root, "kintone", "dev"));
+    }],
     ["アプリのフォルダー", (root) => {
-      mkdirSync(path.join(root, "kintone", "dev-x.cybozu.com"), { recursive: true });
-      symlinkSync(path.join(out, `101-${SECRET}アプリ`), path.join(root, "kintone", "dev-x.cybozu.com", "101-見積書"));
+      mkdirSync(path.join(root, "kintone", "dev"), { recursive: true });
+      symlinkSync(path.join(out, `101-${SECRET}アプリ`), path.join(root, "kintone", "dev", "101-見積書"));
     }],
     ["records", (root) => {
-      const app = path.join(root, "kintone", "dev-x.cybozu.com", "101-見積書");
-      mkdirSync(app, { recursive: true });
+      const app = path.join(root, "kintone", "dev", "101-見積書");
+      core.ensureAppFolder(app, dev, 101);
       writeFileSync(path.join(app, "fields.json"), FIELDS_TEXT);
       symlinkSync(path.join(out, `101-${SECRET}アプリ`, "records"), path.join(app, "records"));
     }]
   ];
   try {
     for (const [name, make] of cases) {
-      const root = devWorkspace();
-      mkdirSync(path.join(root, "kintone"), { recursive: true });
+      const root = makeWorkspace();
       make(root);
-      const s = await connectClaudeCode([root], ENV, { mockFetch: true });
+      const s = await connectClaudeCode([root], connEnv(conn.file), { mockFetch: true });
       try {
-        const files = sc(await s.call("pcraft_files", { workspaceId: root, app: "見積書" }));
+        const files = sc(await s.call("pcraft_files", { workspaceId: root, app: 101 }));
         // アプリのフォルダーそのものが symlink のときは、中核がフォルダーとして数えない（無い = invalid）。どちらでも外は一覧しない
         assert.ok(files.status === "denied" || (name === "アプリのフォルダー" && files.status === "invalid"), `${name}: ${JSON.stringify(files)}`);
-        for (const [tool, input] of [["pcraft_record", { workspaceId: root, app: "見積書", id: 3 }], ["pcraft_edit", { workspaceId: root, app: "見積書" }]]) {
+        for (const [tool, input] of [["pcraft_record", { workspaceId: root, app: 101, id: 3 }], ["pcraft_edit", { workspaceId: root, app: 101 }]]) {
           const r = sc(await s.call(tool, input));
-          assert.notEqual(r.status, "ok", `${name} ${tool}`);
+          assert.notEqual(r.status, "ok", `${name} ${tool}: ${JSON.stringify(r)}`);
         }
-        if (name === "ホストのフォルダー") {
-          for (const tool of ["pcraft_fields", "pcraft_pull"]) assert.equal(sc(await s.call(tool, { workspaceId: root, app: "見積書" })).status, "denied", `${name} ${tool}`);
+        if (name === "profile のフォルダー") assert.deepEqual(sc(await s.call("pcraft_files", { workspaceId: root })).error?.code, "PathError", "profile ごとの一覧も作らない");
+        // profile のフォルダーが外なら、kintone に送る前に断る（records だけが外なら fields.json と pull のファイルはアプリのフォルダーに書ける）
+        if (name === "profile のフォルダー") {
+          for (const tool of ["pcraft_fields", "pcraft_pull"]) assert.equal(sc(await s.call(tool, { workspaceId: root, app: 101 })).status, "denied", `${name} ${tool}`);
         }
         assert.ok(!s.output().includes(SECRET), `${name}: 外の名前を返さない`);
       } finally {
@@ -68,9 +67,9 @@ test("BLOCKER 1: kintone/<ホスト名>・アプリのフォルダー・records�
         rmSync(root, { recursive: true, force: true });
       }
     }
-    const root = devWorkspace();
+    const root = makeWorkspace();
     symlinkSync(out, path.join(root, "inbox"));
-    const s = await connectClaudeCode([root], ENV);
+    const s = await connectClaudeCode([root], connEnv(conn.file));
     try {
       const t = sc(await s.call("pcraft_take", { workspaceId: root }));
       assert.deepEqual([t.status, t.error.code], ["denied", "PathError"]);
@@ -81,6 +80,7 @@ test("BLOCKER 1: kintone/<ホスト名>・アプリのフォルダー・records�
       rmSync(root, { recursive: true, force: true });
     }
   } finally {
+    conn.cleanup();
     rmSync(out, { recursive: true, force: true });
   }
 });

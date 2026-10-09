@@ -2,8 +2,9 @@
  * 作業フォルダーのファイルの扱い（CLI の folderDefaults / fieldsFileOf / trustedBaseUrl / writeText と同じ決まりを、中核の関数で組む）。
  *   - 読むファイルは作業フォルダーの中だけ（resolveRead。.env・node_modules・.git は読まない）
  *   - 設定ファイルは印刷屋の封筒（pluginID）のものだけを読む（レコードのファイルなどを設定として読ませない）
- *   - アプリのフォルダー（kintone/<ホスト名>/<番号>-…/）の中の設定は、同じフォルダーの fields.json と、その環境の接続先を使う
- *   - 書く直前に、書ける場所と、kintone/ の下なら操作 × 場所の許可（environments.json を読み直す）を確かめ直す
+ *   - アプリのフォルダー（kintone/<profile>/<番号>-…/）の中の設定は、同じフォルダーの fields.json と、その profile の接続先を使う（中核 2.0.0。実装案 15 章）
+ *   - kintone/** の中のファイルは、profile の形で、接続のファイルにある profile、印が今の接続のこのアプリのものときだけ読む（15.5）
+ *   - 書く直前に、書ける場所と、kintone/ の下なら操作 × 場所・印・接続の許可（接続のファイルを読み直す）を確かめ直す
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -11,8 +12,10 @@ import path from "node:path";
 import { WorkspaceError as BindingError } from "../binding.ts";
 import {
   ButtonNotFoundError,
+  ConnectionError,
   FileExistsError,
   InputError,
+  KINTONE_ROOT,
   LockBusyError,
   MAX_INPUT_BYTES,
   PathError,
@@ -20,19 +23,21 @@ import {
   QueryError,
   WorkspaceError as CoreWorkspaceError,
   appFolderOfFile,
+  assertAppMark,
   assertChangeAllowed,
-  baseUrlFromEnv,
+  assertUsableInKintone,
+  connectionStatusOf,
   digestOf,
-  envOfAppFolder,
   findAppDir,
-  loadWorkspace,
+  isInside,
+  pickProfile,
+  profileDirOf,
   resolveRead,
   resolveWrite,
-  roleOfTarget,
   type ChangeOp,
-  type EnvironmentDef
+  type ProfileDef,
+  type WorkspaceMode
 } from "../core.ts";
-import type { ServerContext } from "../context.ts";
 import { failure, type ToolResult } from "../result.ts";
 
 /** 印刷屋の設定の封筒の pluginID（印刷屋の PLUGIN_ID_NAME。中核の take.ts と同じ値） */
@@ -63,21 +68,26 @@ export function insideDir(root: string, dir: string): string {
   return resolveRead(rel(root, dir), root);
 }
 
-/** kintone/ と kintone/<ホスト名> の実体が作業フォルダーの中か（中核の findAppDir / appDirFor がその中を一覧する前に。無ければ何もしない） */
-export function checkHostDir(root: string, env: EnvironmentDef): void {
-  for (const d of [path.join(root, "kintone"), path.join(root, "kintone", env.host)]) if (existsSync(d)) insideDir(root, d);
+/** 動く形を、要るときだけ作る（kintone/** の中のファイルを読むときだけ接続のファイルを読む） */
+export type ModeSource = WorkspaceMode | (() => WorkspaceMode);
+const modeOfSource = (m: ModeSource): WorkspaceMode => (typeof m === "function" ? m() : m);
+
+const inKintone = (root: string, file: string): boolean => isInside(path.resolve(root, file), path.join(root, KINTONE_ROOT));
+
+/** kintone/** の中のファイルなら、読む前に確かめる（profile の形、接続のファイルにある profile、印。中核の assertUsableInKintone。15.5） */
+export function assertReadable(root: string, file: string, mode: ModeSource): void {
+  if (inKintone(root, file)) assertUsableInKintone(root, file, modeOfSource(mode));
 }
 
-/** アプリのフォルダー（kintone/<ホスト名>/<番号>-…）。ホストのフォルダーとアプリのフォルダーの実体が作業フォルダーの中のときだけ返す */
-export function appDirIn(root: string, env: EnvironmentDef, appId: number): string | null {
-  const hostDir = path.join(root, "kintone", env.host);
-  if (!existsSync(hostDir)) return null;
-  checkHostDir(root, env);
-  const dir = findAppDir(root, env, appId);
+/**
+ * profile のアプリのフォルダー（kintone/<profile>/<番号>-…）。無ければ null。kintone/ と profile のフォルダーの実体は中核の findAppDir が確かめ、
+ * 印が今の接続のこのアプリのものでなければ ConnectionError（conflict）。records / out の実体は一覧のとき（listAppFolder に root を渡す）に確かめる
+ */
+export function appDirIn(root: string, def: ProfileDef, appId: number): string | null {
+  const dir = findAppDir(root, def.profile, appId);
   if (!dir) return null;
-  const real = insideDir(root, dir);
-  for (const sub of ["records", "out"]) if (existsSync(path.join(real, sub))) insideDir(root, path.join(real, sub));
-  return real;
+  assertAppMark(dir, def, appId);
+  return insideDir(root, dir);
 }
 
 export interface SettingsFile {
@@ -112,10 +122,11 @@ export async function withJsonError<T>(root: string, file: string, what: string,
   }
 }
 
-/** 設定ファイルを 1 回だけ読み、同じ中身から JSON と digest を作る（読み直すと、その間に変わったときにずれる） */
-export function readSettingsFile(root: string, p: string): SettingsFile {
+/** 設定ファイルを 1 回だけ読み、同じ中身から JSON と digest を作る（読み直すと、その間に変わったときにずれる）。kintone/** の中なら先に確かめる */
+export function readSettingsFile(root: string, p: string, mode: ModeSource): SettingsFile {
   const file = resolveRead(p, root);
   if (!existsSync(file)) throw new InputError(`ファイルが無い: ${rel(root, file)}`);
+  assertReadable(root, file, mode);
   const bytes = readFileSync(file);
   if (bytes.length > MAX_INPUT_BYTES) throw new InputError(`${rel(root, file)} が大きすぎる（${bytes.length.toLocaleString()} バイト。上限 ${MAX_INPUT_BYTES.toLocaleString()}）`);
   const text = bytes.toString("utf8");
@@ -130,54 +141,91 @@ export function readSettingsFile(root: string, p: string): SettingsFile {
   return { file, relPath: rel(root, file), bytes, text, settings: settings as Record<string, unknown>, digest: digestOf(bytes) };
 }
 
-/** アプリのフォルダーの中の設定か（environments.json の有無に関わらず、場所で決める。保存の中核と同じ） */
+/** アプリのフォルダーの中の設定か（場所で決める。保存の中核と同じ）。返り値は { dir, profile, appId } */
 export function folderOf(root: string, file: string) {
   return appFolderOfFile(root, file);
 }
 
-/** 項目定義のファイル: 引数の fields、無ければアプリのフォルダーの fields.json */
-export function fieldsFileFor(root: string, file: string, fields: string | undefined): string {
+/** 項目定義のファイル: 引数の fields、無ければアプリのフォルダーの fields.json。kintone/** の中なら先に確かめる */
+export function fieldsFileFor(root: string, file: string, fields: string | undefined, mode: ModeSource): string {
   if (fields) {
     const f = resolveRead(fields, root);
     if (!existsSync(f)) throw new InputError(`項目定義のファイルが無い: ${rel(root, f)}（pcraft_fields か fields コマンドで取る）`);
+    assertReadable(root, f, mode);
     return f;
   }
   const folder = folderOf(root, file);
-  if (!folder) throw new InputError("fields（項目定義のファイル）が要る（アプリのフォルダー kintone/<ホスト名>/<番号>-…/ の中の設定なら同じフォルダーの fields.json を使う）");
+  if (!folder) throw new InputError("fields（項目定義のファイル）が要る（アプリのフォルダー kintone/<profile>/<番号>-…/ の中の設定なら同じフォルダーの fields.json を使う）");
   const own = path.join(folder.dir, "fields.json");
   if (!existsSync(own)) throw new InputError(`アプリのフォルダーに fields.json が無い: ${rel(root, own)}（pcraft_fields か fields コマンドで取る）`);
-  return resolveRead(own, root);
+  const f = resolveRead(own, root);
+  assertReadable(root, f, mode);
+  return f;
+}
+
+/** iframe の同一オリジンの判定に使う接続先（15.8）。origin が null なら iframe を使わない（reason に理由） */
+export interface TrustedOrigin {
+  baseUrl?: string;
+  origin: string | null;
+  reason?: string;
 }
 
 /**
- * iframe の同一オリジンの判定に使う接続先。アプリのフォルダーの中の設定なら environments.json のその環境の baseUrl
- * （フォルダー名は AI が作れるので、フォルダー名そのものは信用しない）、それ以外は設定項目か作業フォルダーの .env
+ * iframe の同一オリジンの判定に使う接続先（フォルダー名は AI が作れるので、フォルダー名そのものは信用しない。接続のファイルの profile の baseUrl）。
+ * アプリのフォルダーのファイルはその profile（引数の profile と違えば InputError）、ほかは引数の profile、無ければ 15.2 の選び方。決まらなければ iframe を使わない
  */
-export function trustedBaseUrl(ctx: ServerContext, root: string, file: string): string | undefined {
+export function trustedOrigin(mode: WorkspaceMode, root: string, file: string, profile: string | undefined): TrustedOrigin {
+  const folder = folderOf(root, file);
+  if (folder && profile !== undefined && profile !== folder.profile) throw new InputError(`profile「${profile}」とファイルのフォルダーの profile（${folder.profile}）が違う`);
+  if (mode.kind !== "profiles") return { origin: null, reason: mode.kind === "legacy-blocked" ? "environments.json が残っている（接続のファイルに移す）" : "kintone の接続のファイルが設定されていない" };
+  const set = mode.connections.set;
+  if (folder) {
+    const def = set.profiles.get(folder.profile);
+    return def ? { baseUrl: def.baseUrl, origin: def.host } : { origin: null, reason: `profile「${folder.profile}」は接続のファイルに無い` };
+  }
   try {
-    const folder = folderOf(root, file);
-    const ws = loadWorkspace(root);
-    if (ws && folder) return envOfAppFolder(ws, folder.host, folder.appId)?.baseUrl;
-    return baseUrlFromEnv({ cwd: root, env: ctx.env });
-  } catch {
-    return undefined; // 接続先は preview の iframe の判定にだけ使う。読めなければ使わない
+    const def = pickProfile(set, profile);
+    return { baseUrl: def.baseUrl, origin: def.host };
+  } catch (e) {
+    if (e instanceof ConnectionError && profile === undefined) return { origin: null, reason: "既定の profile が決まらない（profile を付けると iframe を使える）" };
+    throw e;
   }
 }
 
-/** 開発の環境のアプリのフォルダーなら、そのフォルダーの out/。それ以外（本番・未分類・アプリのフォルダーの外）は作業フォルダーの out/（4.2 の P9） */
+/** 応答に足す iframe の接続先（ホストか null と、null の理由。15.8） */
+export function originFields(t: TrustedOrigin): Record<string, unknown> {
+  return { trustedOrigin: t.origin, ...(t.reason ? { trustedOriginReason: t.reason } : {}) };
+}
+
+/** アプリのフォルダーのファイルなら、そのフォルダーの out/。それ以外は作業フォルダーの out/ */
 export function previewDirFor(root: string, file: string): string {
   const folder = folderOf(root, file);
-  if (folder && roleOfTarget(root, path.join(folder.dir, "out", "x.html"))?.role === "development") return path.join(folder.dir, "out");
-  return path.join(root, "out");
+  return folder ? path.join(folder.dir, "out") : path.join(root, "out");
+}
+
+/** 書ける場所と許可を確かめる（書かない）。書く先の実際のパスを返す */
+export function checkWritable(root: string, target: string, roots: readonly string[], op: ChangeOp, mode: WorkspaceMode): string {
+  const real = resolveWrite(rel(root, target), roots, root);
+  assertChangeAllowed(root, real, op, mode);
+  return real;
+}
+
+/**
+ * kintone に送る前に、保存先（アプリのフォルダー。無ければ作る場所）に書けるかを確かめる（送ってから断らない。Codex の B1 レビュー BLOCKER 1）。
+ * 今あるフォルダーは印も確かめる。返り値は今あるフォルダー（無ければ null。作るのは取った後で、名前はアプリ名で決まる）
+ */
+export function precheckAppWrite(root: string, def: ProfileDef, appId: number, name: string, op: ChangeOp, mode: WorkspaceMode): string | null {
+  const existing = appDirIn(root, def, appId);
+  checkWritable(root, path.join(existing ?? path.join(profileDirOf(root, def.profile), String(appId)), name), [KINTONE_ROOT], op, mode);
+  return existing;
 }
 
 /** 書く直前に、書ける場所と許可を確かめ直してから書く（CLI の writeText と同じ。書く先のパスが途中で変われば書かない） */
-export function writeChecked(root: string, target: string, text: string, roots: readonly string[], op: ChangeOp): string {
-  const real = resolveWrite(rel(root, target), roots, root);
-  assertChangeAllowed(root, real, op);
+export function writeChecked(root: string, target: string, text: string, roots: readonly string[], op: ChangeOp, mode: WorkspaceMode): string {
+  const real = checkWritable(root, target, roots, op, mode);
   mkdirSync(path.dirname(real), { recursive: true });
   if (resolveWrite(rel(root, real), roots, root) !== real) throw new PermissionError(`書く先のフォルダーが途中で変わった（symlink など）: ${rel(root, real)}`);
-  assertChangeAllowed(root, real, op);
+  assertChangeAllowed(root, real, op, mode);
   writeFileSync(real, text, "utf8");
   return real;
 }
@@ -186,8 +234,10 @@ export function writeChecked(root: string, target: string, text: string, roots: 
 export function fromError(e: unknown): ToolResult {
   const message = e instanceof Error ? e.message : String(e);
   if (e instanceof BindingError) return failure("denied", "WorkspaceError", message);
-  // environments.json の誤り・知らない環境の名前・apps に無いアプリの名前は入力の誤り（Codex の B1 レビュー MINOR 1）
-  if (e instanceof CoreWorkspaceError) return failure("invalid", "WorkspaceError", message);
+  // kintone の接続のファイル・アプリのフォルダーの印の誤り（15.10 の表）
+  if (e instanceof ConnectionError) return failure(connectionStatusOf(e), e.code, message);
+  // 作業フォルダーの形の食い違い（同じ番号のアプリのフォルダーが 2 つ。利用者が 1 つにする）。呼び出しの引数の誤りではない
+  if (e instanceof CoreWorkspaceError) return failure("conflict", "WorkspaceError", message);
   if (e instanceof PathError) return failure("denied", "PathError", message);
   if (e instanceof PermissionError) return failure("denied", "PermissionError", message);
   if (e instanceof FileExistsError || e instanceof LockBusyError) return failure("conflict", "ConflictError", message);

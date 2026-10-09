@@ -11,10 +11,7 @@
       ],
       "env": {
         "PCRAFT_PLUGIN_ZIP": "${user_config.pluginZip}",
-        "KINTONE_BASE_URL": "${user_config.kintoneBaseUrl}",
-        "KINTONE_API_TOKEN": "${user_config.kintoneApiToken}",
-        "KINTONE_USERNAME": "${user_config.kintoneUsername}",
-        "KINTONE_PASSWORD": "${user_config.kintonePassword}"
+        "PCRAFT_KINTONE_CONFIG": "${user_config.kintoneConfig}"
       }
     }
   }

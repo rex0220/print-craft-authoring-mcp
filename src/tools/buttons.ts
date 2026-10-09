@@ -7,7 +7,7 @@ import { z } from "zod";
 import { listButtons } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { ok } from "../result.ts";
-import { incompatibleResult, workspaceIdSchema } from "./common.ts";
+import { incompatibleResult, lazyMode, workspaceIdSchema } from "./common.ts";
 import { checkRelPaths, fromError, readSettingsFile, redactPersonal } from "./files.ts";
 
 export function registerButtons(server: McpServer, ctx: ServerContext): void {
@@ -33,7 +33,8 @@ export function registerButtons(server: McpServer, ctx: ServerContext): void {
         const root = ctx.binding.resolve(input.workspaceId);
         const incompatible = incompatibleResult();
         if (incompatible) return incompatible;
-        const f = readSettingsFile(root, input.path);
+        // 接続のファイルは kintone/** の中のファイルのときだけ読む（そのフォルダーの profile と印を確かめる。15.9 の表）
+        const f = readSettingsFile(root, input.path, lazyMode(ctx, root));
         // 権限のユーザー・組織・グループ・ゲストの値は伏せる（件数と digest。Codex の B1 レビュー MAJOR 1）
         const text = listButtons(redactPersonal(f.settings), { file: f.relPath, button: input.button });
         const menus = (Array.isArray(f.settings.pluginInfos) ? f.settings.pluginInfos : []).map((r) => String((r as { menu?: unknown }).menu ?? ""));

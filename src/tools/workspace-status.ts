@@ -1,27 +1,44 @@
 /**
- * pcraft_workspace_status（作業フォルダーの診断。実装案 5.1 ③）: 作業フォルダーの照合は通す（未登録なら denied）が、互換表の判定は通さない。
- * environments.json の有無、環境ごとの role、未分類（role の無い）環境、印刷屋の zip（ファイル名、読めるか、版）。読み取りだけ（13.3）
+ * pcraft_workspace_status（作業フォルダーの診断。実装案 5.1 ③、15.8）: 作業フォルダーの照合は通す（未登録なら denied）が、互換表の判定は通さない。
+ * 動く形（profiles / not-configured / legacy-blocked。15.4）、kintone の接続のファイル（読めるか、既定の profile、profile ごとの接続先・認証の種類・
+ * トークンが使えるか、使えない profile とその理由、警告）、アプリのフォルダーの名前と印の状態、使われていない profile のフォルダー、environments.json の有無、
+ * 印刷屋の zip（ファイル名、読めるか、版）。接続の誤りがあっても status は ok（診断の結果として返す。15.10）。秘密の値と環境変数の名前は返さない。読み取りだけ
  */
-import { lstatSync } from "node:fs";
 import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { WorkspaceError } from "../binding.ts";
-import { PathError, WORKSPACE_FILE, loadWorkspace } from "../core.ts";
+import { ConnectionError, LEGACY_WORKSPACE_FILE, PathError, appFoldersOf, hasLegacyConfig, unusedProfileDirs, type ConnectionSet, type WorkspaceMode } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { failure, ok, sanitizeMessage, unexpected } from "../result.ts";
 import { workspaceIdSchema } from "./common.ts";
+import { connectionDetail, connectionNext, problemOf, type ConnectionProblem } from "./connection-report.ts";
 import { zipReport } from "./zip-report.ts";
 
-/** ファイルがあるか（symlink はリンクそのもの。リンク切れも「ある」） */
-const exists = (p: string): boolean => {
-  try {
-    lstatSync(p);
-    return true;
-  } catch {
-    return false;
+/** 一覧の上限（AI に返す量） */
+const MAX_FOLDERS = 200;
+
+/** profile ごとのアプリのフォルダーの名前と印の状態（中は一覧しない。15.5）と、使われていない profile のフォルダー */
+function folderReport(root: string, set: ConnectionSet): { report: Record<string, unknown>; next: string[] } {
+  const next: string[] = [];
+  const byProfile: Record<string, unknown> = {};
+  const bad: string[] = [];
+  for (const def of set.profiles.values()) {
+    const folders = appFoldersOf(root, def);
+    if (folders.length) byProfile[def.profile] = folders.slice(0, MAX_FOLDERS);
+    for (const f of folders) if (f.mark !== "ok") bad.push(`kintone/${def.profile}/${f.name}（${f.mark}）`);
   }
-};
+  if (bad.length) {
+    next.push(
+      `印の無い・壊れた・別の接続のアプリのフォルダーがある（使わない）: ${bad.slice(0, 20).join("、")}${bad.length > 20 ? ` ほか ${bad.length - 20} 件` : ""}。` +
+        "利用者が名前を変えて退け、pcraft_fields か pcraft_pull で作り直す（中のファイルは後で移す）"
+    );
+  }
+  const invalid = new Set(set.invalid.map((p) => p.name));
+  const unused = unusedProfileDirs(root, set).map((name) => ({ name, reason: invalid.has(name) ? "profile-invalid" : "unknown-profile" }));
+  if (unused.length) next.push(`接続のファイルに無い（か使えない）profile のフォルダーがある（変えない）: ${unused.map((u) => `kintone/${u.name}`).join("、")}`);
+  return { report: { byProfile, ...(unused.length ? { unused } : {}) }, next };
+}
 
 export function registerWorkspaceStatus(server: McpServer, ctx: ServerContext): void {
   server.registerTool(
@@ -29,7 +46,8 @@ export function registerWorkspaceStatus(server: McpServer, ctx: ServerContext): 
     {
       title: "印刷屋の作業フォルダーの診断",
       description:
-        "印刷屋プラグイン（rex0220 Print craft）の作業フォルダーの診断: environments.json の有無、環境ごとの役割（development / production）、役割の無い環境、印刷屋の zip（ファイル名、読めるか、版）。次にすること（next）を返す。状態は推し量らず、このツールで確かめる。読み取りだけ",
+        "印刷屋プラグイン（rex0220 Print craft）の作業フォルダーの診断: kintone の接続のファイル（読めるか、既定の profile、profile ごとの接続先と認証の種類、トークンが使えるか）、アプリのフォルダーの状態、" +
+        "印刷屋の zip（ファイル名、読めるか、版）。次にすること（next）を返す。状態は推し量らず、このツールで確かめる。読み取りだけ",
       inputSchema: z.object({ workspaceId: workspaceIdSchema(ctx.surface) }).strict(),
       annotations: { readOnlyHint: true, openWorldHint: false }
     },
@@ -43,24 +61,40 @@ export function registerWorkspaceStatus(server: McpServer, ctx: ServerContext): 
       }
       try {
         const next: string[] = [];
-        let environments: Record<string, unknown> | null = null;
-        let problem: string | undefined;
+        let mode: WorkspaceMode | undefined;
+        let problem: ConnectionProblem | undefined;
         try {
-          const ws = loadWorkspace(root);
-          if (ws) {
-            const envs = Object.values(ws.environments);
-            environments = {
-              default: ws.defaultEnv,
-              list: envs.map((e) => ({ name: e.name, role: e.role, host: e.host })),
-              apps: ws.apps.map((a) => ({ name: a.name, ids: a.ids }))
-            };
-            const unclassified = envs.filter((e) => e.role === "unclassified").map((e) => e.name);
-            if (unclassified.length) next.push(`環境 ${unclassified.join("、")} に role が無い。利用者が ${WORKSPACE_FILE} に role（development か production）を書くまで、その環境のフォルダー（kintone/<ホスト名>/…）は変更できない`);
-          }
+          mode = ctx.mode(root);
         } catch (e) {
-          // 外を指す symlink・リンク切れは決まった文（外のパスや中身を返さない。Codex の B1 再レビュー BLOCKER 2）
-          problem = e instanceof PathError ? `${WORKSPACE_FILE} の実体が作業フォルダーの外を指しているか、リンク切れ（symlink など）。作業フォルダーの中の普通のファイルにする` : sanitizeMessage((e as Error).message);
-          next.push(`${WORKSPACE_FILE} が読めない: ${problem}（利用者が直す。AI は書かない）`);
+          if (!(e instanceof ConnectionError)) throw e;
+          problem = problemOf(e);
+        }
+        const legacy = hasLegacyConfig(root);
+        let connection: Record<string, unknown>;
+        let folders: Record<string, unknown> | undefined;
+        if (mode?.kind === "profiles") {
+          const set = mode.connections.set;
+          connection = { configured: true, ready: true, ...connectionDetail(set) };
+          for (const w of set.warnings) next.push(`接続のファイルの注意: ${w}`);
+          try {
+            const r = folderReport(root, set);
+            folders = r.report;
+            next.push(...r.next);
+          } catch (e) {
+            // kintone/ などの実体が外を指す・同じ番号のフォルダーが 2 つ（外のパスや中身を返さない。Codex の B1 再レビュー BLOCKER 2）
+            const msg = e instanceof PathError ? "kintone/ か profile のフォルダーの実体が作業フォルダーの外を指しているか、リンク切れ（symlink など）" : sanitizeMessage((e as Error).message);
+            folders = { problem: msg };
+            next.push(`アプリのフォルダーを確かめられない: ${msg}（利用者が直す）`);
+          }
+          if (legacy) next.push(`${LEGACY_WORKSPACE_FILE} は使わない（tools 2.0.0 から。接続のファイルを使う）。利用者が消してよい`);
+        } else {
+          const p = problem ?? (mode?.kind === "legacy-blocked" ? { code: "legacy-config-present", message: `${LEGACY_WORKSPACE_FILE} が残っていて、接続のファイルが無い` } : { code: "not-configured", message: "kintone の接続のファイルが設定されていない" });
+          connection = { configured: ctx.connectionFile !== undefined, ready: false, ...(ctx.connectionFile ? { fileName: path.basename(ctx.connectionFile) } : {}), problem: p };
+          next.push(
+            p.code === "legacy-config-present"
+              ? `${LEGACY_WORKSPACE_FILE} は tools 2.0.0 から使わない。kintone の接続のファイル（kSQL の ksql.config.json と同じ形）に移す（移すまで kintone を使うツールとアプリのフォルダーは止まる。settings/ の作業は動く）。移し方は pcraft_docs の作業フォルダーの形`
+              : connectionNext(p, ctx.surface)
+          );
         }
         const zip = await zipReport(ctx, root);
         if (zip.next) next.push(zip.next);
@@ -68,7 +102,10 @@ export function registerWorkspaceStatus(server: McpServer, ctx: ServerContext): 
           ready: next.length === 0,
           next: next.length ? next : ["準備ができている"],
           workspace: { name: path.basename(root) },
-          environmentsJson: { exists: exists(path.join(root, WORKSPACE_FILE)), ...(environments ? { environments } : {}), ...(problem ? { problem } : {}) },
+          mode: mode?.kind ?? "error",
+          connection,
+          ...(folders ? { appFolders: folders } : {}),
+          environmentsJson: { exists: legacy },
           pluginZip: zip.report
         });
       } catch (e) {
