@@ -31,11 +31,11 @@ export function makeWorkspace(prefix = "pcraft-mcp-") {
 /** 試験のときだけ kintone の偽物を読み込ませる（Node の --import。test/mock-fetch.mjs） */
 export const MOCK_FETCH = pathToFileURL(path.join(here, "mock-fetch.mjs")).href;
 
-/** サーバーを起動してクライアントでつなぐ。応答と標準エラーを集める（秘密の値が出ないかの確かめ）。opt.mockFetch で kintone の偽物 */
+/** サーバーを起動してクライアントでつなぐ。応答と標準エラーを集める（秘密の値が出ないかの確かめ）。opt.mockFetch で kintone の偽物、opt.server で別に作った本体 */
 export async function connect(args, env = {}, opt = {}) {
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [...(opt.mockFetch ? ["--import", MOCK_FETCH] : []), SERVER, ...args],
+    args: [...(opt.mockFetch ? ["--import", MOCK_FETCH] : []), opt.server ?? SERVER, ...args],
     env: { PATH: process.env.PATH ?? "", KINTONE_API_TOKEN: SECRET, ...env },
     cwd: SPAWN_CWD,
     stderr: "pipe"

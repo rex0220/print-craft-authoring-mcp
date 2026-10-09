@@ -4,6 +4,7 @@
  */
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { buildProblem, compatInfo } from "../compat.ts";
 import { zipGuide, zipOf, type ServerContext } from "../context.ts";
 import { ok } from "../result.ts";
 import { VERSION, coreVersion } from "../version.ts";
@@ -31,6 +32,8 @@ export function registerStatus(server: McpServer, ctx: ServerContext): void {
         workspace = { registered: ctx.binding.registered.roots, ignoredInvalidEntries: ctx.binding.registered.dropped };
         if (ctx.binding.registered.roots.length === 0) next.push("作業フォルダーが未登録。作業フォルダーで印刷屋のツール（pcraft_save_settings など）を呼ぶと登録の確認が出る（登録の後は /mcp で print-craft を再接続）");
       }
+      const bp = buildProblem();
+      if (bp) next.push(`互換表と合わない: ${bp}（print-craft MCP を入れ直す・更新する）`);
       const zip = zipOf(ctx, root);
       if (zip.problem) next.push(`印刷屋の zip の設定が読めない: ${zip.problem}`);
       else if (!zip.zip && (ctx.surface === "desktop" || ctx.env.PCRAFT_PLUGIN_ZIP !== undefined)) next.push(`印刷屋の zip が未設定。${zipGuide(ctx.surface)}`);
@@ -40,6 +43,7 @@ export function registerStatus(server: McpServer, ctx: ServerContext): void {
         next: next.length ? next : ["準備ができている。手順と資料は pcraft_docs、作業フォルダーの診断は pcraft_workspace_status"],
         version: VERSION,
         core: coreVersion(),
+        compat: compatInfo(),
         surface: ctx.surface,
         node: process.version,
         platform: process.platform,

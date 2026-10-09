@@ -4,7 +4,9 @@
 //   - 出力: dist/server/print-craft-mcp.cjs（本体）、dist/server/index.cjs（起動のファイル。main() を必ず呼ぶ。kSQL）、
 //     dist/vendor/（中核のエンジンが読む moment。中核の paths.ts は「本体の 1 つ上の vendor/」を見る）
 //   - CJS に import.meta.url は無いので、本体のファイルの URL に置き換える（中核の paths.ts が自分の場所から vendor/ を探す）
-// 使い方: node build-mcp.mjs
+//   - 互換表（compat.json。7 章）を埋め込み、ビルドの組み合わせ（版・中核の版・資料の元）が表と合うかを、束ねたもので確かめる（合わなければ止める）
+// 使い方: node build-mcp.mjs [--out <フォルダー>] [--compat <compat.json>] [--no-compat-check]
+//   （--out / --compat / --no-compat-check は試験用: 合わない互換表のビルドを作って、実行のときの incompatible を試す）
 import { build } from "esbuild";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -14,7 +16,14 @@ import { fileURLToPath } from "node:url";
 import { DOC_SECTIONS } from "./scripts/docs-sections.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.join(root, "dist");
+const argOf = (name) => {
+  const i = process.argv.indexOf(name);
+  return i >= 0 ? process.argv[i + 1] : undefined;
+};
+const dist = path.resolve(argOf("--out") ?? path.join(root, "dist"));
+const compatFile = path.resolve(argOf("--compat") ?? path.join(root, "compat.json"));
+const compatCheck = !process.argv.includes("--no-compat-check");
+const compat = JSON.parse(readFileSync(compatFile, "utf8"));
 const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
 const toolsDir = path.join(root, "node_modules", "@rex0220", "print-craft-authoring-tools");
 const tools = JSON.parse(readFileSync(path.join(toolsDir, "package.json"), "utf8"));
@@ -56,6 +65,7 @@ const result = await build({
   define: {
     __PCRAFT_MCP_VERSION__: JSON.stringify(pkg.version),
     __PCRAFT_DOCS__: JSON.stringify(JSON.stringify(docs)),
+    __PCRAFT_COMPAT__: JSON.stringify(JSON.stringify(compat)),
     "import.meta.url": "__pcraft_import_meta_url"
   },
   tsconfig: path.join(root, "tsconfig.json"),
@@ -87,8 +97,11 @@ main().catch((err) => {
 mkdirSync(path.join(dist, "vendor"), { recursive: true });
 for (const f of ["moment-with-locales.min.js", "moment.json"]) copyFileSync(path.join(toolsDir, "vendor", f), path.join(dist, "vendor", f));
 
-// 束ねたものが読み込めるか（起動はしない。main と VERSION を持つか）
-const probe = spawnSync(process.execPath, ["-e", `const m = require(${JSON.stringify(outfile)}); if (typeof m.main !== "function") process.exit(2); console.log(m.VERSION)`], { encoding: "utf8" });
-if (probe.status !== 0 || probe.stdout.trim() !== pkg.version) throw new Error(`束ねたものが読み込めない（exit ${probe.status}）:\n${probe.stderr}`);
+// 束ねたものが読み込めるか（起動はしない。main と VERSION を持つか）と、互換表とビルドの組み合わせが合うか
+const probe = spawnSync(process.execPath, ["-e", `const m = require(${JSON.stringify(outfile)}); if (typeof m.main !== "function") process.exit(2); console.log(JSON.stringify({ version: m.VERSION, problem: m.buildProblem() ?? null }))`], { encoding: "utf8" });
+if (probe.status !== 0) throw new Error(`束ねたものが読み込めない（exit ${probe.status}）:\n${probe.stderr}`);
+const probed = JSON.parse(probe.stdout.trim().split("\n").at(-1));
+if (probed.version !== pkg.version) throw new Error(`束ねたものの版 ${probed.version} が package.json の ${pkg.version} と違う`);
+if (compatCheck && probed.problem) throw new Error(`互換表とビルドの組み合わせが合わない（compat.json を直す）: ${probed.problem}`);
 
 console.log(`[build-mcp] dist/server/print-craft-mcp.cjs (${bundle.length.toLocaleString()} bytes; ${inputs.length} inputs; 版 ${pkg.version}; 中核 tools ${tools.version}; 資料 ${sections.length} 章、元 ${source.short}${source.dirty ? "+dirty" : ""})`);

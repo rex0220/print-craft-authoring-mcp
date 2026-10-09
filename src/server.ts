@@ -22,6 +22,7 @@ import { registerWorkspaceStatus } from "./tools/workspace-status.ts";
 import { VERSION, versionLine } from "./version.ts";
 
 export { VERSION };
+export { buildProblem } from "./compat.ts";
 
 /** JSON-RPC の 1 通の上限（content / replacement は 256 KiB まで。余裕を見て） */
 const STDIO_MAX_BUFFER_BYTES = 4 * 1024 * 1024;

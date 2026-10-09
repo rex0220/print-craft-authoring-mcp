@@ -9,7 +9,7 @@ import { z } from "zod";
 import { QUERY_MAX, listRecordShapes } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { ok } from "../result.ts";
-import { workspaceIdSchema } from "./common.ts";
+import { incompatibleResult, workspaceIdSchema } from "./common.ts";
 import { fromError } from "./files.ts";
 import { appRefOf, envSchema, kintoneFor } from "./kintone.ts";
 
@@ -34,6 +34,8 @@ export function registerKintoneGet(server: McpServer, ctx: ServerContext): void 
     async (input) => {
       try {
         const root = ctx.binding.resolve(input.workspaceId);
+        const incompatible = incompatibleResult();
+        if (incompatible) return incompatible;
         const target = kintoneFor(ctx, root, input.env);
         const ref = appRefOf(input.app, target.client.baseUrl);
         const app = await target.client.get<Record<string, unknown>>("app", { id: ref.appId }, ref.guestSpaceId);
@@ -72,6 +74,8 @@ export function registerKintoneGet(server: McpServer, ctx: ServerContext): void 
     async (input) => {
       try {
         const root = ctx.binding.resolve(input.workspaceId);
+        const incompatible = incompatibleResult();
+        if (incompatible) return incompatible;
         const target = kintoneFor(ctx, root, input.env);
         const ref = appRefOf(input.app, target.client.baseUrl);
         const r = await listRecordShapes(target.client, { app: ref.appId, query: input.query, guestSpaceId: ref.guestSpaceId });

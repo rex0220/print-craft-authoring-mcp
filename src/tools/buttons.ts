@@ -7,7 +7,7 @@ import { z } from "zod";
 import { listButtons } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { ok } from "../result.ts";
-import { workspaceIdSchema } from "./common.ts";
+import { incompatibleResult, workspaceIdSchema } from "./common.ts";
 import { fromError, readSettingsFile } from "./files.ts";
 
 export function registerButtons(server: McpServer, ctx: ServerContext): void {
@@ -30,6 +30,8 @@ export function registerButtons(server: McpServer, ctx: ServerContext): void {
     async (input) => {
       try {
         const root = ctx.binding.resolve(input.workspaceId);
+        const incompatible = incompatibleResult();
+        if (incompatible) return incompatible;
         const f = readSettingsFile(root, input.path);
         const text = listButtons(f.settings, { file: f.relPath, button: input.button });
         const menus = (Array.isArray(f.settings.pluginInfos) ? f.settings.pluginInfos : []).map((r) => String((r as { menu?: unknown }).menu ?? ""));

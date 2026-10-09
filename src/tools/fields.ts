@@ -9,7 +9,7 @@ import { z } from "zod";
 import { WRITE_ROOTS, appDirFor, fetchFields, listFields } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { ok } from "../result.ts";
-import { workspaceIdSchema } from "./common.ts";
+import { incompatibleResult, workspaceIdSchema } from "./common.ts";
 import { fromError, rel, writeChecked } from "./files.ts";
 import { appIdOf, appSchema, envSchema, kintoneFor } from "./kintone.ts";
 
@@ -38,6 +38,8 @@ export function registerFields(server: McpServer, ctx: ServerContext): void {
     async (input) => {
       try {
         const root = ctx.binding.resolve(input.workspaceId);
+        const incompatible = incompatibleResult();
+        if (incompatible) return incompatible;
         const target = kintoneFor(ctx, root, input.env);
         const appId = appIdOf(target, input.app);
         const file = await fetchFields(target.client, { app: appId, preview: input.preview === true, guestSpaceId: input.guestSpaceId });

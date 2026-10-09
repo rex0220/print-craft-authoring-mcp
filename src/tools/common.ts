@@ -4,6 +4,7 @@
  */
 import { z } from "zod";
 import { WorkspaceError, type Surface } from "../binding.ts";
+import { buildProblem, zipProblem } from "../compat.ts";
 import { loadPolicy, type Engine, type Policy, type SaveResult } from "../core.ts";
 import { zipGuide, zipOf, type ServerContext } from "../context.ts";
 import { failure, ok, type Finding, type ToolResult } from "../result.ts";
@@ -35,12 +36,22 @@ export async function prepare(ctx: ServerContext, workspaceId: string | undefine
     if (e instanceof WorkspaceError) return failure("denied", "WorkspaceError", e.message);
     throw e;
   }
+  const incompatible = incompatibleResult();
+  if (incompatible) return incompatible;
   const zip = zipOf(ctx, root);
   if (zip.problem) return failure("failed", "PluginZipError", `印刷屋の zip の設定が読めない: ${zip.problem}`);
   if (!zip.zip) return failure("failed", "PluginZipError", `印刷屋の zip が未設定。${zipGuide(ctx.surface)}`);
   const engine = await ctx.engine(zip.zip);
+  const zp = zipProblem(engine);
+  if (zp) return failure("incompatible", "IncompatibleError", zp);
   const policy = loadPolicy({ cwd: root });
   return { root, engine, policy };
+}
+
+/** 互換表とビルドの組み合わせが合わなければ incompatible（作業フォルダーを使うツールだけが使う。7 章） */
+export function incompatibleResult(): ToolResult | undefined {
+  const p = buildProblem();
+  return p ? failure("incompatible", "IncompatibleError", `${p}（print-craft MCP を入れ直す・更新する）`) : undefined;
 }
 
 export const isToolResult = (v: unknown): v is ToolResult => typeof v === "object" && v !== null && "content" in v && "isError" in v;
