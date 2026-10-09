@@ -1,0 +1,48 @@
+{
+  "name": "print-craft",
+  "version": "0.1.0",
+  "description": "kintone の印刷屋プラグイン（rex0220 Print craft）の帳票の設定 JSON を、検査（normalize）を通して作業フォルダーに保存・確認する（print-craft MCP と、作業フォルダーの結び付け・設定ファイルへの直接の書き込みを止めるフック）",
+  "author": {
+    "name": "rex0220"
+  },
+  "userConfig": {
+    "workspaceRoots": {
+      "type": "string",
+      "title": "印刷屋の作業フォルダー",
+      "description": "信頼する作業フォルダーの絶対パスの JSON の配列（初めて使うときに確認の画面から自動で足す）",
+      "required": false
+    },
+    "pluginZip": {
+      "type": "string",
+      "title": "印刷屋プラグインの zip",
+      "description": "アプリに入れた印刷屋プラグインの zip の絶対パス（空なら作業フォルダーの .env の PCRAFT_PLUGIN_ZIP）",
+      "required": false
+    },
+    "kintoneBaseUrl": {
+      "type": "string",
+      "title": "kintone の URL",
+      "description": "https://<サブドメイン>.cybozu.com（空なら作業フォルダーの .env。environments.json があるときは使わない）",
+      "required": false
+    },
+    "kintoneApiToken": {
+      "type": "string",
+      "title": "kintone の API トークン",
+      "description": "閲覧だけの API トークンを勧める（空なら作業フォルダーの .env）",
+      "required": false,
+      "sensitive": true
+    },
+    "kintoneUsername": {
+      "type": "string",
+      "title": "kintone のログイン名",
+      "description": "API トークンを使わないとき（空なら作業フォルダーの .env）",
+      "required": false
+    },
+    "kintonePassword": {
+      "type": "string",
+      "title": "kintone のパスワード",
+      "description": "API トークンを使わないとき",
+      "required": false,
+      "sensitive": true
+    }
+  }
+}

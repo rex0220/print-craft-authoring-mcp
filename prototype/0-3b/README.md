@@ -1,5 +1,7 @@
 # 段階 0-3b の試作（中核を呼ぶ print-craft MCP の保存のツール）
 
+> 2026-10-09（B1）: リポジトリの直下に本番のプラグイン（`print-craft`）を置いたので、`claude plugin test` が直下から流すとき試作の試験を拾わないよう、試作のフックの試験の名前を `hooks/register.proto-test.ts` に変えた。試作の試験を流すときは、名前を `register.test.ts` に戻してこのフォルダーで `claude plugin test` を実行する
+
 実装案（[../../docs/プラグイン化の実装案.md](../../docs/プラグイン化の実装案.md)）の 9 章 0-3b。中核を呼ぶ print-craft MCP のツール `pcraft_save_settings` を、Claude Code（プラグインの `.mcp.json`）と Desktop（`.mcpb`）の両方から試す。確かめるのは、`ok` / `conflict` / `denied` / `invalid` / `failed` が 5.2 の約束どおりになるか。秘密の値は使わない。kintone には接続しない。
 
 ## ファイル

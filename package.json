@@ -11,7 +11,9 @@
   "scripts": {
     "build": "node build-mcp.mjs",
     "check": "tsc --noEmit -p tsconfig.json",
-    "test": "node build-mcp.mjs && node --test \"test/**/*.test.mjs\""
+    "test": "node build-mcp.mjs && node --test \"test/**/*.test.mjs\"",
+    "build:mcpb": "node build-mcp.mjs && node build-mcpb.mjs",
+    "verify:mcpb": "node build-mcp.mjs && node build-mcpb.mjs && node scripts/mcpb-verify.mjs"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "2.0.0",

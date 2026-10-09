@@ -1,5 +1,7 @@
 # 段階 0-3a の試作（Claude Code の API）
 
+> 2026-10-09（B1）: リポジトリの直下に本番のプラグイン（`print-craft`）を置いたので、`claude plugin test` が直下から流すとき試作の試験を拾わないよう、試作のフックの試験の名前を `hooks/register.proto-test.ts` に変えた。試作の試験を流すときは、名前を `register.test.ts` に戻してこのフォルダーで `claude plugin test` を実行する
+
 実装案（[../../docs/プラグイン化の実装案.md](../../docs/プラグイン化の実装案.md)）の 9 章 0-3a。秘密の値は使わない。書き込みもしない（`pcraft_save_settings` は確定する先を返すだけ）。
 
 | ファイル | 中身 |
