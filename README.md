@@ -49,7 +49,7 @@ mkdir -p ~/pcraft-b1-ws && cd ~/pcraft-b1-ws
 
 | # | すること | 期待 | 結果 |
 | --- | --- | --- | --- |
-| 1 | `/config` で print-craft の「印刷屋プラグインの zip」（絶対パス）と、kintone の URL・API トークン（閲覧だけ。試験用のアプリ）を入れ、`/mcp` で再接続 | `/mcp` に print-craft とツール 15 | |
+| 1 | `/config` で print-craft の「印刷屋プラグインの zip」（絶対パス）と「kintone の URL」を入れる。API トークンは秘密の設定項目なので `--plugin-dir` では `/config` に出ない。作業フォルダーの `.env` に `KINTONE_API_TOKEN=…`（閲覧だけ。試験用のアプリ）を利用者がエディターで書く（チャットに貼らない）。`/mcp` で再接続 | `/mcp` に print-craft とツール 15 | |
 | 2 | 「印刷屋で見積書の帳票を作りたい」 | `pcraft_docs` が呼ばれ、目次に版と作業の順 | |
 | 3 | （続き）アプリの番号を伝える | `pcraft_status` → 作業フォルダーの登録の確認 → 再接続 → `pcraft_fields` で項目の要約 | |
 | 4 | （続き）代表のレコードを決める | `pcraft_record` で形だけ（値は出ない） | |
@@ -64,7 +64,7 @@ mkdir -p ~/pcraft-b1-ws && cd ~/pcraft-b1-ws
 
 | # | すること | 期待 | 結果 |
 | --- | --- | --- | --- |
-| 1 | 設定項目: 作業フォルダー（選ぶ画面で）、zip、kintone の URL・API トークン（閲覧だけ。試験用のアプリ） | 設定画面でトークンが平文で見えない | |
+| 1 | 設定項目（入れたときの画面か、設定 → 拡張機能 → 印刷屋 設定オーサリング（Print craft）の設定）: 作業フォルダー（選ぶ画面で）、zip、kintone の URL・API トークン（閲覧だけ。試験用のアプリ） | 設定画面でトークンが平文で見えない | |
 | 2 | 「印刷屋で見積書の帳票を作りたい」 | `pcraft_docs` → `pcraft_status`（版 0.1.0、`ready: true`） | |
 | 3 | アプリの番号か URL を伝える | `kintone_get_app` で名前、`pcraft_fields` で要約 | |
 | 4 | 代表のレコードを選ぶ | `kintone_list_records`（形だけ、5 件）→ `pcraft_record` | |
