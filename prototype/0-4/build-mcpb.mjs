@@ -19,7 +19,7 @@ const version = VERSION.replace(/-.*$/, "");
 export const manifest = {
   manifest_version: "0.3",
   name: "print-craft-authoring-proto",
-  display_name: "印刷屋 設定オーサリング（試作 0-4）",
+  display_name: "印刷屋 設定オーサリング（Print craft 試作）",
   version,
   description: "段階 0-4 の試作。Claude Desktop での設定項目・秘密の値・資料のツールの動きを確かめる（帳票は作らない）",
   author: { name: "rex0220" },
@@ -41,7 +41,7 @@ export const manifest = {
     }
   },
   tools: [
-    { name: "pcraft_docs", description: "印刷屋の手順と資料（読み取りだけ。resources の代わり）" },
+    { name: "pcraft_docs", description: "kintone の印刷屋プラグイン（rex0220 Print craft）で帳票（見積書・請求書・納品書・一覧表などの PDF）のボタン・設定を作る・直すとき、最初に呼ぶ手順と資料（読み取りだけ）" },
     { name: "pcraft_status", description: "診断（版、Node、設定項目の届き方。秘密の値は出さない）" },
     { name: "pcraft_workspace_status", description: "作業フォルダーの診断" },
     { name: "kintone_probe", description: "（任意）API トークンで app とプラグインの設定情報の API が通るか（状態だけ）" }

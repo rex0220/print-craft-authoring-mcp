@@ -10,7 +10,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const VERSION = "0.0.2-proto";
+const VERSION = "0.0.3-proto";
 const PRINT_CRAFT_PLUGIN_ID = "lcapkanpjdabgphknkabojmcfhonhkhp"; // print-craft-authoring/tools/src/meta.ts
 const KINTONE_HOST_SUFFIXES = [".cybozu.com", ".kintone.com", ".cybozu.cn"]; // tools/src/kintone-url.ts
 const RECEIVE_LIMIT = { app: 64 * 1024, pluginConfig: 2 * 1024 * 1024 }; // api-table.md の案
@@ -80,8 +80,9 @@ const INSTRUCTIONS = [
 const DOCS = {
   index: [
     `${VERSION_LINE} — この呼び出しに答えた常駐のプロセスの版`,
-    "章: overview（試作で確かめること）、setup（初めの準備）"
+    "章: howto（帳票の作り方。試作では未記入）、overview（試作で確かめること）、setup（初めの準備）"
   ].join("\n"),
+  howto: "（試作）本番ではここに帳票レシピ集の手順が入る: 1. アプリの番号か URL を聞く 2. 項目定義を取る（pcraft_fields）3. 帳票を書いて保存（pcraft_save_settings）4. preview を開いてもらう 5. 印刷屋の設定画面でアップロード",
   overview: "段階 0-4: Desktop の Node の版、設定項目の渡り方、秘密の値が漏れないこと、チャットが pcraft_docs と instructions を使うか",
   setup: "1. kintone で閲覧だけの API トークンを作る（試験用の環境）\n2. この拡張機能の設定で URL・トークン・作業フォルダーを入れる\n3. 更新したら Desktop を再起動し、新しい会話を始める"
 };
@@ -90,9 +91,9 @@ const strict = (properties, required = []) => ({ type: "object", properties, req
 const RO = { readOnlyHint: true, openWorldHint: false };
 
 const TOOLS = [
-  { name: "pcraft_docs", description: "印刷屋の手順と資料（読み取りだけ。resources の代わり）。引数なしで目次、section でその章", inputSchema: strict({ section: { type: "string" } }), annotations: RO },
-  { name: "pcraft_status", description: "診断: サーバーの版、Node の版、OS、起動時の cwd、届いた設定項目の形（秘密の値は設定済みかと文字数だけ）", inputSchema: strict({}), annotations: RO },
-  { name: "pcraft_workspace_status", description: "作業フォルダーの診断（起動時に固定したフォルダー、environments.json の有無）", inputSchema: strict({ workspaceId: { type: "string" } }), annotations: RO },
+  { name: "pcraft_docs", description: "kintone の印刷屋プラグイン（rex0220 Print craft）で帳票（見積書・請求書・納品書・一覧表などの PDF）のボタン・設定を作る・直すとき、最初に呼ぶ。手順と資料（読み取りだけ）。引数なしで目次、section でその章。「印刷屋の設定」「帳票を作りたい」と言われたらまずこれ", inputSchema: strict({ section: { type: "string" } }), annotations: RO },
+  { name: "pcraft_status", description: "印刷屋プラグイン（Print craft）の帳票づくりの環境の診断: サーバーの版、Node の版、OS、起動時の cwd、届いた設定項目の形（秘密の値は設定済みかと文字数だけ）", inputSchema: strict({}), annotations: RO },
+  { name: "pcraft_workspace_status", description: "印刷屋プラグイン（Print craft）の帳票の設定を置く作業フォルダーの診断（起動時に固定したフォルダー、environments.json の有無）", inputSchema: strict({ workspaceId: { type: "string" } }), annotations: RO },
   {
     name: "kintone_probe",
     description: "（任意。試験用の kintone だけ）API トークンで app の API とプラグインの設定情報の API（pull が使う API ラボ）が通るかを、HTTP の状態とエラーコードだけで返す。GET だけ",
