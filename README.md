@@ -24,7 +24,7 @@ kintone の印刷屋プラグイン（rex0220 Print craft）の帳票の設定 J
 
 隣に `print-craft`（印刷屋の zip `dist/print-craft-plugin7.zip`。試験だけ）があること。
 
-中核は tools 1.3.1 以上（`compat.json` の `coreVersion`）。1.3.1 を npm に公開するまでは、隣の print-craft-authoring の `tools` で `npm pack` した tarball を `npm install --no-save <tgz>` で入れて試す（`package.json` と lockfile は 1.3.0 のまま。公開した後に 1.3.1 に上げる）。
+中核は npm の `@rex0220/print-craft-authoring-tools` 1.3.1（lockfile で固定。`compat.json` の `coreVersion` は 1.3.1 以上）。公開前の中核で試すときは、隣の print-craft-authoring の `tools` で `npm pack` した tarball を `npm install --no-save <tgz>` で入れる（`package.json` と lockfile は変えない）。
 
 ```sh
 npm ci
