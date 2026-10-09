@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "print-craft": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/dist/server/index.cjs",
+        "--surface",
+        "claude-code",
+        "--roots",
+        "${user_config.workspaceRoots}"
+      ],
+      "env": {
+        "PCRAFT_PLUGIN_ZIP": "${user_config.pluginZip}"
+      }
+    }
+  }
+}

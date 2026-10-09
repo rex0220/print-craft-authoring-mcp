@@ -1,0 +1,22 @@
+{
+  "name": "print-craft-mcp-proto-0-3b",
+  "version": "0.0.6",
+  "private": true,
+  "description": "段階 0-3b の試作: 共通の中核（print-craft-authoring の tools/src）を呼ぶ print-craft MCP の保存のツールを、Claude Code のプラグインと .mcpb の両方から試す",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "build:mcpb": "node build.mjs && node build-mcpb.mjs",
+    "check": "tsc --noEmit -p tsconfig.server.json",
+    "test": "node build.mjs && node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
+    "@types/node": "24.19.1",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "zod": "4.4.3"
+  }
+}

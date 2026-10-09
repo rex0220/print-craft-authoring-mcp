@@ -1,0 +1,22 @@
+{
+  "name": "print-craft-proto",
+  "version": "0.0.6",
+  "description": "段階 0-3b の試作（print-craft MCP の保存のツール pcraft_save_settings が共通の中核を呼ぶ。作業フォルダーの結び付け、直接の Write / Edit の拒否）。秘密の値は使わない",
+  "author": {
+    "name": "rex0220"
+  },
+  "userConfig": {
+    "workspaceRoots": {
+      "type": "string",
+      "title": "印刷屋の作業フォルダー",
+      "description": "信頼する作業フォルダーの絶対パスの JSON の配列（試作。初めて使うときに確認の画面から自動で足す）",
+      "required": false
+    },
+    "pluginZip": {
+      "type": "string",
+      "title": "印刷屋プラグインの zip",
+      "description": "アプリに入れた印刷屋プラグインの zip の絶対パス（試作。空なら作業フォルダーの .env の PCRAFT_PLUGIN_ZIP）",
+      "required": false
+    }
+  }
+}
