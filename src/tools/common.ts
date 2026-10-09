@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 import { WorkspaceError, type Surface } from "../binding.ts";
-import { baseUrlFromEnv, loadPolicy, type Engine, type Policy, type SaveResult } from "../core.ts";
+import { loadPolicy, type Engine, type Policy, type SaveResult } from "../core.ts";
 import { zipGuide, zipOf, type ServerContext } from "../context.ts";
 import { failure, ok, type Finding, type ToolResult } from "../result.ts";
 
@@ -15,17 +15,17 @@ export function workspaceIdSchema(surface: Surface) {
     : z.string().min(1).max(4096).optional().describe("作業フォルダー（省略してよい。設定の作業フォルダーを使う）");
 }
 
-/** 作業フォルダーを使うツールの文脈（作業フォルダーの実際のパス、エンジン、policy、接続先） */
+/** 作業フォルダーを使うツールの文脈（作業フォルダーの実際のパス、エンジン、policy） */
 export interface WorkContextForTool {
   root: string;
   engine: Engine;
   policy: Policy;
-  baseUrl?: string;
 }
 
 /**
  * 作業フォルダーを決め、印刷屋のエンジンと policy を用意する。だめなら応答（denied / failed）を返す。
- * 作業フォルダーの照合（4.1）→ 印刷屋の zip（設定項目か .env）→ エンジン → policy（作業フォルダーの policy/authoring-policy.json）
+ * 作業フォルダーの照合（4.1）→ 印刷屋の zip（設定項目か .env）→ エンジン → policy（作業フォルダーの policy/authoring-policy.json）。
+ * 接続先（iframe の判定）は設定ファイルの場所で決まるので、各ツールで files.ts の trustedBaseUrl
  */
 export async function prepare(ctx: ServerContext, workspaceId: string | undefined): Promise<WorkContextForTool | ToolResult> {
   let root: string;
@@ -40,13 +40,7 @@ export async function prepare(ctx: ServerContext, workspaceId: string | undefine
   if (!zip.zip) return failure("failed", "PluginZipError", `印刷屋の zip が未設定。${zipGuide(ctx.surface)}`);
   const engine = await ctx.engine(zip.zip);
   const policy = loadPolicy({ cwd: root });
-  let baseUrl: string | undefined;
-  try {
-    baseUrl = baseUrlFromEnv({ cwd: root, env: ctx.env });
-  } catch {
-    baseUrl = undefined; // 接続先は preview の iframe の判定にだけ使う。読めなければ使わない
-  }
-  return { root, engine, policy, baseUrl };
+  return { root, engine, policy };
 }
 
 export const isToolResult = (v: unknown): v is ToolResult => typeof v === "object" && v !== null && "content" in v && "isError" in v;

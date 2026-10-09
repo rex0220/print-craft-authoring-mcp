@@ -8,8 +8,12 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio, StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { WorkspaceBinding, isUnset, parseArgs } from "./binding.ts";
 import { createServerContext, type Env, type ServerContext } from "./context.ts";
+import { registerButtons } from "./tools/buttons.ts";
+import { registerNormalize } from "./tools/normalize.ts";
+import { registerPreview } from "./tools/preview.ts";
 import { registerSaveSettings } from "./tools/save.ts";
 import { registerStatus } from "./tools/status.ts";
+import { registerUpdateButton } from "./tools/update-button.ts";
 import { registerWorkspaceStatus } from "./tools/workspace-status.ts";
 import { VERSION, versionLine } from "./version.ts";
 
@@ -37,6 +41,10 @@ export function createServer(ctx: ServerContext): McpServer {
   registerStatus(server, ctx);
   registerWorkspaceStatus(server, ctx);
   registerSaveSettings(server, ctx);
+  registerUpdateButton(server, ctx);
+  registerButtons(server, ctx);
+  registerNormalize(server, ctx);
+  registerPreview(server, ctx);
   return server;
 }
 

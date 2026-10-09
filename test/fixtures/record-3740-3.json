@@ -1,0 +1,109 @@
+{
+  "tool": "pcraft-authoring record",
+  "fetchedAt": "",
+  "baseUrl": "https://x.cybozu.com",
+  "appId": 3740,
+  "id": 3,
+  "record": {
+    "$id": {
+      "type": "RECORD_NUMBER",
+      "value": "3"
+    },
+    "$revision": {
+      "type": "__REVISION__",
+      "value": "7"
+    },
+    "宛名": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "□□□□株式会社 <b>&\"'</b>"
+    },
+    "見積番号": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "S-0000003"
+    },
+    "見積日": {
+      "type": "DATE",
+      "value": "2026-02-12"
+    },
+    "小計金額": {
+      "type": "NUMBER",
+      "value": "7994000"
+    },
+    "消費税": {
+      "type": "NUMBER",
+      "value": "799400"
+    },
+    "合計金額": {
+      "type": "NUMBER",
+      "value": "8793400"
+    },
+    "備考": {
+      "type": "MULTI_LINE_TEXT",
+      "value": "月額費用のお見積りです。<b>太字</b>\n合計3,000ユーザー"
+    },
+    "担当者": {
+      "type": "USER_SELECT",
+      "value": [
+        {
+          "code": "authoring",
+          "name": "authoring"
+        }
+      ]
+    },
+    "見積ファイル": {
+      "type": "FILE",
+      "value": []
+    },
+    "発行済み": {
+      "type": "CHECK_BOX",
+      "value": []
+    },
+    "見積明細": {
+      "type": "SUBTABLE",
+      "value": [
+        {
+          "id": "1",
+          "value": {
+            "商品名": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "kintone ワイドコース"
+            },
+            "数量": {
+              "type": "NUMBER",
+              "value": "1"
+            },
+            "単価": {
+              "type": "NUMBER",
+              "value": "3000000"
+            },
+            "金額": {
+              "type": "CALC",
+              "value": "3000000"
+            }
+          }
+        },
+        {
+          "id": "2",
+          "value": {
+            "商品名": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "セキュアアクセス <script>x</script>"
+            },
+            "数量": {
+              "type": "NUMBER",
+              "value": "1000"
+            },
+            "単価": {
+              "type": "NUMBER",
+              "value": "250"
+            },
+            "金額": {
+              "type": "CALC",
+              "value": "250000"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
