@@ -131,7 +131,7 @@ test("MAJOR 1: zip の誤りを種類（code）ごとの決まった文で返す
     ["unreadable", "garbage", { readable: false, compatible: false }],
     ["unsupported-version", makePluginZip(stubInnerEntries({ "manifest.json": JSON.stringify({ version: 5 }) })), { readable: true, compatible: false, pluginVersion: "5" }],
     ["not-print-craft", makePluginZip(stubInnerEntries(), { PUBKEY: Buffer.from("not the print-craft key") }), { readable: true, compatible: false, pluginVersion: "6" }],
-    // 最後: スタブのコードを動かす（版の照合まで進む）。グローバルに残るので、ほかの読み込みより後に
+    // 最後: スタブのコードを動かす（版の照合まで進む）。失敗するとそのサーバーでは以後 restart-required になるので、ほかの読み込みより後に
     ["api-unsupported", makePluginZip(stubInnerEntries({ "config_js/print-craft-authoring-api.js": 'window.rex0220PrintCraftAuthoring = { apiVersion: 3, pluginVersion: "6" };' })), { readable: true, compatible: false, pluginVersion: "6", authoringApiVersion: 3 }]
   ];
   const roots = cases.map(([code, data]) => {
@@ -146,7 +146,8 @@ test("MAJOR 1: zip の誤りを種類（code）ごとの決まった文で返す
   });
   const s = await connectClaudeCode(roots, {});
   try {
-    for (const [i, [code, , expected]] of cases.entries()) {
+    const check = async (i) => {
+      const [code, , expected] = cases[i];
       const st = sc(await s.call("pcraft_workspace_status", { workspaceId: roots[i] }));
       assert.equal(st.status, "ok", code);
       const z = st.result.pluginZip;
@@ -155,13 +156,16 @@ test("MAJOR 1: zip の誤りを種類（code）ごとの決まった文で返す
       assert.equal(z.fileName, path.basename(i === 0 ? cases[0][1] : `${code}.zip`));
       assert.ok(!JSON.stringify(st).includes(zips) && !JSON.stringify(st).includes(roots[i]), `${code}: 絶対パスを返さない`);
       assert.equal(st.result.ready, false);
-    }
+    };
+    for (let i = 0; i < cases.length - 1; i++) await check(i);
     const incompatible = sc(await s.call("pcraft_normalize", { workspaceId: roots[2], path: "fields/3740.json", fields: "fields/3740.json" }));
     assert.deepEqual([incompatible.status, incompatible.error.code], ["incompatible", "IncompatibleError"], "版が対応外は incompatible");
     assert.match(incompatible.error.message, /印刷屋の版 5 の zip には対応していない/);
     const unreadable = sc(await s.call("pcraft_normalize", { workspaceId: roots[1], path: "fields/3740.json", fields: "fields/3740.json" }));
     assert.deepEqual([unreadable.status, unreadable.error.code], ["failed", "PluginZipError"]);
     assert.ok(!JSON.stringify(unreadable).includes(zips), "zip のパスを返さない");
+    // 最後: zip のコードを動かす失敗（api-unsupported）。以後このサーバーは restart-required（review-b1-r3.test.mjs）
+    await check(cases.length - 1);
   } finally {
     await s.close();
     for (const r of roots) rmSync(r, { recursive: true, force: true });

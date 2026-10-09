@@ -11,7 +11,7 @@
 | `incompatible` | print-craft MCP と合わない（印刷屋の zip の版が対応外、authoring API の版、互換表） | `error.message` のとおり利用者に頼む（print-craft MCP の更新か、アプリに入れたものと同じ版の zip） |
 | `conflict` | 同じ名前のファイルがある（新しい設定の保存は上書きしない）、読んだ後にファイルが変わった（digest が違う）、別の保存が進行中 | 新しい設定なら別の名前に。既存のボタンを直すなら `pcraft_buttons` で読み直して `pcraft_update_button` |
 | `denied` | 断った（下の「断る場合」） | 利用者に伝える。回り道をしない（Bash や別のツールで書かない） |
-| `failed` | 印刷屋の zip が無い・読めない・読み込んだものと違う（zip を変えたら再接続）、帳票を描けなかった（`RenderError`。誤りの文はレコードの値を含みうるので返らない）、kintone の誤り（HTTP の状態とエラーコード）、想定外の失敗 | `error.message` を利用者に伝える |
+| `failed` | 印刷屋の zip が無い・読めない・読み込んだものと違う・前に読み込みに失敗した（zip を変えた・直したら再接続）、帳票を描けなかった（`RenderError`。誤りの文はレコードの値を含みうるので返らない）、kintone の誤り（HTTP の状態とエラーコード）、想定外の失敗 | `error.message` を利用者に伝える |
 
 ## 断る場合（denied）
 

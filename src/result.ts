@@ -7,7 +7,6 @@
  * content の文字と structuredContent は同じ中身。秘密の値は入れない
  */
 import os from "node:os";
-import path from "node:path";
 
 export type Status = "ok" | "invalid" | "incompatible" | "conflict" | "denied" | "failed";
 
@@ -50,23 +49,38 @@ export function scrubHome(message: string): string {
   return home && home.length > 1 ? message.split(home).join("~") : message;
 }
 
-let scrubRoots: string[] = [];
+let scrubRoots: RegExp[] = [];
+
+const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * 作業フォルダーの絶対パスに当たる正規表現。区切りは / と \ のどちらでも、Windows は大文字小文字を区別しない。
+ * 後ろが区切り（続きは作業フォルダーからの相対として残す）か、文の終わり・空白・括弧・句読点・引用符のときだけ当てる（/work/app で /work/app-copy に当てない。Codex の B1 3 回目 MINOR 2）
+ */
+export function rootPattern(root: string, platform: NodeJS.Platform = process.platform): RegExp {
+  const body = root.split(/[\\/]+/).map(escapeRe).join("[\\\\/]+");
+  return new RegExp(`${body}(?:[\\\\/]+|(?=$|[\\s"'()（）「」、。,:：]))`, platform === "win32" ? "gi" : "g");
+}
 
 /** 誤りの文から除く作業フォルダー（起動のときに登録済み・設定の作業フォルダーを渡す。長いものから置き換える） */
-export function setScrubRoots(roots: readonly string[]): void {
-  scrubRoots = [...new Set(roots)].filter((r) => r.length > 1).sort((a, b) => b.length - a.length);
+export function setScrubRoots(roots: readonly string[], platform: NodeJS.Platform = process.platform): void {
+  scrubRoots = [...new Set(roots)]
+    .filter((r) => r.replace(/[\\/]+$/, "").length > 3)
+    .sort((a, b) => b.length - a.length)
+    .map((r) => rootPattern(r.replace(/[\\/]+$/, ""), platform));
 }
 
 /**
  * JSON.parse の誤りの文（Node 20 から「Unexpected token 'x', "…" is not valid JSON」の形で中身の一部が入る）の中身を除く。
- * 読んだファイル（レコード、設定）の値を返さない。位置（position / line / column）だけの文はそのまま（Codex の B1 再レビュー）
+ * 読んだファイル（レコード、設定）の値を返さない。位置（position / line / column）だけの文はそのまま（Codex の B1 再レビュー）。
+ * MCP が読む JSON（設定・項目定義・レコード）は読み込みの境で決まった文にしてある（files.ts の withJsonError）。これは中核の中の読み込みなどへの備え
  */
 const JSON_SNIPPET = /(?:Unexpected token '[\s\S]{1,2}', )?(?:\.\.\.)?"[\s\S]*? is not valid JSON/g;
 
 /** AI に返す文: JSON の中身の一部を除き、作業フォルダーの絶対パスを相対に、ホームのフォルダーを ~ に */
 export function sanitizeMessage(message: string): string {
   let m = message.replace(JSON_SNIPPET, "JSON として読めない（中身は返さない）");
-  for (const r of scrubRoots) m = m.split(r + path.sep).join("").split(r).join("（作業フォルダー）");
+  for (const re of scrubRoots) m = m.replace(re, (hit) => (/[\\/]$/.test(hit) ? "" : "（作業フォルダー）"));
   return scrubHome(m);
 }
 

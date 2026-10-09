@@ -8,7 +8,7 @@ import { DEFAULT_CONTEXT_BASE_URL, normalizeSettings, readFieldsFile } from "../
 import type { ServerContext } from "../context.ts";
 import { failure, ok, type Finding } from "../result.ts";
 import { isToolResult, prepare, workspaceIdSchema } from "./common.ts";
-import { checkRelPaths, fieldsFileFor, fromError, readSettingsFile, trustedBaseUrl } from "./files.ts";
+import { checkRelPaths, fieldsFileFor, fromError, readSettingsFile, trustedBaseUrl, withJsonError } from "./files.ts";
 
 /** --check の差の件数の上限（AI に返す量） */
 const MAX_CHECK_DIFFS = 50;
@@ -38,7 +38,8 @@ export function registerNormalize(server: McpServer, ctx: ServerContext): void {
           const w = await prepare(ctx, input.workspaceId);
           if (isToolResult(w)) return w;
           const f = readSettingsFile(w.root, input.path);
-          const fields = await readFieldsFile(fieldsFileFor(w.root, f.file, input.fields));
+          const fieldsFile = fieldsFileFor(w.root, f.file, input.fields);
+          const fields = await withJsonError(w.root, fieldsFile, "項目定義のファイル", () => readFieldsFile(fieldsFile));
           const baseUrl = trustedBaseUrl(ctx, w.root, f.file);
           w.engine.setContext({ baseUrl: baseUrl ?? DEFAULT_CONTEXT_BASE_URL, appId: fields.appId });
           const r = await normalizeSettings({ settingsText: f.text, settingsFile: f.relPath, fields, engine: w.engine, policy: w.policy, check: input.check === true, baseUrl });

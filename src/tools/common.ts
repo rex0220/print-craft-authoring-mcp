@@ -8,7 +8,7 @@ import { buildProblem, zipProblem } from "../compat.ts";
 import { PluginZipError, loadPolicy, type Engine, type Policy, type SaveResult } from "../core.ts";
 import { zipGuide, zipOf, type ServerContext } from "../context.ts";
 import { failure, ok, type Finding, type ToolResult } from "../result.ts";
-import { describeZipError } from "./zip-report.ts";
+import { describeZipError } from "../zip-error.ts";
 
 /** workspaceId: Claude Code では必須（プラグインのフックが入れる）、Desktop では省略できる（設定の作業フォルダーを使う）。実装案 4.1 */
 export function workspaceIdSchema(surface: Surface) {

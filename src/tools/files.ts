@@ -92,6 +92,26 @@ export interface SettingsFile {
   digest: string;
 }
 
+/**
+ * JSON.parse の誤りの位置（行と列）だけ。誤りの文そのものは返さない（Node 20 から読んだファイルの中身の一部が入る。
+ * 各 JSON の読み込みの境で決まった文にする。Codex の B1 3 回目 MINOR 2）
+ */
+export function jsonErrorWhere(e: unknown): string {
+  const m = /in JSON at position (\d+)(?: \(line (\d+) column (\d+)\))?/.exec(e instanceof Error ? e.message : String(e));
+  if (!m) return "";
+  return m[2] ? `（${m[2]} 行 ${m[3]} 列）` : `（位置 ${m[1]}）`;
+}
+
+/** JSON のファイルを中核で読む関数を呼び、JSON として読めないときの文を決まった文に（what は「レコードのファイル」など） */
+export async function withJsonError<T>(root: string, file: string, what: string, read: () => T | Promise<T>): Promise<T> {
+  try {
+    return await read();
+  } catch (e) {
+    if (e instanceof InputError && /を JSON として読めない/.test(e.message)) throw new InputError(`${what}を JSON として読めない: ${rel(root, file)}${jsonErrorWhere(e)}（中身は返さない）`);
+    throw e;
+  }
+}
+
 /** 設定ファイルを 1 回だけ読み、同じ中身から JSON と digest を作る（読み直すと、その間に変わったときにずれる） */
 export function readSettingsFile(root: string, p: string): SettingsFile {
   const file = resolveRead(p, root);
@@ -103,7 +123,7 @@ export function readSettingsFile(root: string, p: string): SettingsFile {
   try {
     settings = JSON.parse(text);
   } catch (e) {
-    throw new InputError(`${rel(root, file)} を JSON として読めない: ${(e as Error).message}`);
+    throw new InputError(`${rel(root, file)} を JSON として読めない${jsonErrorWhere(e)}（中身は返さない）`);
   }
   if (!settings || typeof settings !== "object" || Array.isArray(settings)) throw new InputError(`${rel(root, file)} の最上位はオブジェクト`);
   if ((settings as Record<string, unknown>).pluginID !== SETTINGS_PLUGIN_ID) throw new InputError(`${rel(root, file)} は印刷屋の設定のファイルではない（封筒の pluginID が "${SETTINGS_PLUGIN_ID}" でない）`);

@@ -14,7 +14,7 @@ import { DEFAULT_CONTEXT_BASE_URL, InputError, WRITE_ROOTS, normalizeSettings, r
 import type { ServerContext } from "../context.ts";
 import { failure, ok, type Finding } from "../result.ts";
 import { isToolResult, prepare, workspaceIdSchema } from "./common.ts";
-import { checkRelPaths, fieldsFileFor, folderOf, fromError, previewDirFor, readSettingsFile, rel, trustedBaseUrl, writeChecked } from "./files.ts";
+import { checkRelPaths, fieldsFileFor, folderOf, fromError, previewDirFor, readSettingsFile, rel, trustedBaseUrl, withJsonError, writeChecked } from "./files.ts";
 
 /** ボタンごとの式のエラーの件数の上限（AI に返す量） */
 const MAX_ERRORS_PER_BUTTON = 20;
@@ -32,16 +32,6 @@ export function safeRenderError(e: string): string {
 
 /** 描画の想定外の誤り（例外の文はレコードの値を含みうるので、返さず、記録にも残さない） */
 const RENDER_FAILED = "帳票を描けなかった（誤りの文はレコードの値を含みうるので返さない）。pcraft_normalize で設定を確かめ、レコードのファイルを pcraft_record で取り直す。直らなければ利用者に印刷屋のプレビューで確かめてもらう";
-
-/** レコードのファイル（JSON）を読む。JSON として読めないときの文に中身の一部が入らないようにする */
-function readRecordJson(root: string, file: string): Record<string, unknown> {
-  try {
-    return readJsonLimited(file);
-  } catch (e) {
-    if (e instanceof InputError && /JSON として読めない/.test(e.message)) throw new InputError(`レコードのファイルを JSON として読めない: ${rel(root, file)}（中身は返さない）`);
-    throw e;
-  }
-}
 
 function recordFileFor(root: string, settingsFile: string, record: string): string {
   const folder = folderOf(root, settingsFile);
@@ -81,14 +71,15 @@ export function registerPreview(server: McpServer, ctx: ServerContext): void {
           const w = await prepare(ctx, input.workspaceId);
           if (isToolResult(w)) return w;
           const f = readSettingsFile(w.root, input.path);
-          const fields = await readFieldsFile(fieldsFileFor(w.root, f.file, input.fields));
+          const fieldsFile = fieldsFileFor(w.root, f.file, input.fields);
+          const fields = await withJsonError(w.root, fieldsFile, "項目定義のファイル", () => readFieldsFile(fieldsFile));
           const recordFile = recordFileFor(w.root, f.file, input.record);
           const baseUrl = trustedBaseUrl(ctx, w.root, f.file);
           // 描く前に必ず検査する（tools 1.3.0 の runPreview は検査でエラーがあっても描く。描かせない。Codex の B1 レビュー MAJOR 2）
           w.engine.setContext({ baseUrl: baseUrl ?? DEFAULT_CONTEXT_BASE_URL, appId: fields.appId });
           const checked = await normalizeSettings({ settingsText: f.text, settingsFile: f.relPath, fields, engine: w.engine, policy: w.policy, baseUrl });
           if (checked.findings.hasErrors) return failure("invalid", "NormalizeError", `設定にエラーがあるので帳票を描かない（pcraft_normalize で確かめる）: ${checked.summary}`, checked.findings.items as unknown as Finding[]);
-          const recordJson = readRecordJson(w.root, recordFile);
+          const recordJson = await withJsonError(w.root, recordFile, "レコードのファイル", () => readJsonLimited(recordFile));
           let result: PreviewResult;
           try {
             result = await runPreview({ settingsText: f.text, settingsFile: f.relPath, fields, recordFile: recordJson, engine: w.engine, policy: w.policy, button: input.button, baseUrl });
