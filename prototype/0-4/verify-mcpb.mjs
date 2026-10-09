@@ -6,13 +6,15 @@
 // 使い方: node prototype/0-4/build-mcpb.mjs && node prototype/0-4/verify-mcpb.mjs
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, parse, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const mcpbPath = join(here, "dist-mcpb", "print-craft-proto.mcpb");
 const tmp = resolve(here, "../../.tmp/mcpb-verify");
 const TEST_TOKEN = "TEST-not-a-real-token-0123456789"; // 本物の資格情報は使わない（実装案 9 章 0-4）
+// 起動するときの作業フォルダー: ドライブ（ボリューム）のいちばん上。Mac は /、Windows は C:\ など（Desktop も cwd を / にしていた）
+const SPAWN_CWD = parse(process.cwd()).root;
 
 function assert(cond, message) {
   if (!cond) throw new Error(message);
@@ -53,7 +55,7 @@ async function talk(serverDir, manifest, workspaceDir) {
   );
   const env = { ...process.env };
   for (const [k, v] of Object.entries(manifest.server.mcp_config.env)) env[k] = v.replace("${user_config.kintoneApiToken}", TEST_TOKEN);
-  const child = spawn(process.execPath, argv, { cwd: "/", env, stdio: ["pipe", "pipe", "pipe"] });
+  const child = spawn(process.execPath, argv, { cwd: SPAWN_CWD, env, stdio: ["pipe", "pipe", "pipe"] });
   let out = "";
   let err = "";
   const waiters = new Map();
@@ -131,7 +133,7 @@ async function main() {
   assert(r.docs.content[0].text.startsWith("print-craft MCP"), "pcraft_docs の目次は版の行で始まる");
   const st = r.status.structuredContent.result;
   assert(st.token.set === true && st.token.length === TEST_TOKEN.length && st.token.appearsInArgv === false, "トークンは env で届き、引数に無い");
-  assert(st.cwd === "/", "cwd は起動の場所のまま（使わない）");
+  assert(st.cwd === SPAWN_CWD, "cwd は起動の場所のまま（使わない）");
   assert(r.ws.structuredContent?.ok === true, "作業フォルダーは起動時に固定");
   assert(r.wrongWs.isError === true, "別の workspaceId は拒否");
   assert(!r.argv.some(a => a.includes(TEST_TOKEN)), "引数にトークンが無い");
@@ -152,6 +154,12 @@ async function main() {
   writeFileSync(fileAsWs, "x");
   const r4 = await talk(serverDir, manifest, fileAsWs);
   assert(r4.status.structuredContent.result.workspace === null, "同じ名前のファイルがあれば作業フォルダーにしない");
+
+  // 設定の欄に " で囲んだパスを貼っても使える（Windows のエクスプローラーの「パスのコピー」の形）
+  const quoted = join(tmp, "quoted-workspace");
+  const r5 = await talk(serverDir, manifest, `"${quoted}"`);
+  const st5 = r5.status.structuredContent.result;
+  assert(st5.workspace !== null && existsSync(quoted), " で囲んだ作業フォルダーのパスを受け付ける");
 
   console.log(`[verify-mcpb] ok（node ${process.version} で起動。Desktop の Node の版は手で確かめる）`);
 }

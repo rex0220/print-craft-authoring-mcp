@@ -10,15 +10,26 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const VERSION = "0.0.4-proto";
+const VERSION = "0.0.5-proto";
 const PRINT_CRAFT_PLUGIN_ID = "lcapkanpjdabgphknkabojmcfhonhkhp"; // print-craft-authoring/tools/src/meta.ts
 const KINTONE_HOST_SUFFIXES = [".cybozu.com", ".kintone.com", ".cybozu.cn"]; // tools/src/kintone-url.ts
 const RECEIVE_LIMIT = { app: 64 * 1024, pluginConfig: 2 * 1024 * 1024 }; // api-table.md の案
 
+/**
+ * 設定の欄に貼られた値の前後の空白と、両端の引用符（" か '）を外す。Windows のエクスプローラーの「パスのコピー」は
+ * "C:\Users\…" のように " で囲む（2026-10-09 の手での確認で、" 付きの作業フォルダーが「絶対パスでない」になった）。
+ * 今のテンプレートの .env の PCRAFT_PLUGIN_ZIP も " 付きのまま読める（tools/src/env.ts）ので、同じ扱いにする
+ */
+function unquote(v) {
+  if (typeof v !== "string") return v;
+  const t = v.trim();
+  return t.length >= 2 && ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) ? t.slice(1, -1).trim() : t;
+}
+
 function parseArgs(argv) {
   const out = { surface: undefined, workspaceDir: undefined, pluginZip: undefined, baseUrl: undefined };
   const keys = { "--surface": "surface", "--workspace-dir": "workspaceDir", "--plugin-zip": "pluginZip", "--base-url": "baseUrl" };
-  for (let i = 0; i < argv.length; i++) if (keys[argv[i]]) out[keys[argv[i]]] = argv[++i];
+  for (let i = 0; i < argv.length; i++) if (keys[argv[i]]) out[keys[argv[i]]] = unquote(argv[++i]);
   return out;
 }
 

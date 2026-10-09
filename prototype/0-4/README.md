@@ -65,7 +65,32 @@ manifest に `privacy_policies` は入れていない（試作。Desktop がイ�
 - **利用者には「印刷屋で〜」と頼んでもらう**（5d）。印刷屋の言葉が無い「見積書の帳票を作りたい」は、Excel のひな形などと区別できないので結び付かない。README と使い方の例に「印刷屋で見積書の帳票を作って」の形を書く。手順のスキル（Customize）を配る場合は、説明に帳票・見積書を入れれば結び付く余地があるが、ほかの意味との取り違えに気を付ける
 - **ツールの答えは、AI が読み違えない形にする**（5d）。「この起動で作ったか」の印（`created: false`）は「作られていない」と読まれた → 外すか、`exists` など意味のはっきりした名前にする。状態のツールは「準備ができている / 何が足りないか」を文章でも返す。資料に「状態は手順の文から推し量らず、`pcraft_status` / `pcraft_workspace_status` で確かめる」と書く（AI は setup の手順の文から「未設定」と推し量った）
 
+- **Windows で、作業フォルダーの欄に `"` で囲んだパスを入れると「絶対パスでない」になった**（2026-10-09。エクスプローラーの「パスのコピー」は `"C:\Users\…"` の形でコピーする）。0.0.5 で、設定項目の値（作業フォルダー、zip、URL）の前後の空白と両端の `"` / `'` を外してから確かめるようにした（今のテンプレートの `.env` の `PCRAFT_PLUGIN_ZIP` も `"` 付きのまま読める）。`verify-mcpb.mjs` に確かめを足した。「フォルダー」の種類の設定項目は、Windows でも手で入れた文字をそのまま渡す
+
 結果を書いたら、関門（9 章）で 6.1・6.2（秘密の値の渡し方）、5.5（`.mcpb` 1 つで配れるか）、api-table.md の pull の扱いを確定する。
+
+## Windows の手順（項目 11）
+
+PowerShell で（パスは `C:\Users\rex02\Projects\…`。ルートの CLAUDE.md の Windows の置き場所）:
+
+```powershell
+cd C:\Users\rex02\Projects\kintone-plugin
+git -C work-link pull
+git clone https://github.com/rex0220/print-craft-authoring-mcp.git   # まだ無ければ（private。gh か git の認証が要る）
+node work-link/setup-claude-memory.mjs --write                         # この機器の Claude Code のメモリの向け先
+cd print-craft-authoring-mcp
+node prototype/0-4/build-mcpb.mjs
+node prototype/0-4/verify-mcpb.mjs                                     # [verify-mcpb] ok が出ること
+```
+
+1. `prototype\0-4\dist-mcpb\print-craft-proto.mcpb` をダブルクリック（または Desktop の 設定 > 拡張機能 > 詳細設定 > 拡張機能をインストール）
+2. 設定項目: 作業フォルダー = `C:\Users\rex02\Projects\my-print-craft-test`（無くてよい。すぐ上の `Projects` があれば作られる）、URL = `https://<開発用のサブドメイン>.cybozu.com`、API トークン = アプリ 3740 の閲覧だけのトークン（Mac と同じものでよい。チャットに貼らない）、zip = `C:\Users\rex02\Projects\kintone-plugin\print-craft\dist\print-craft-plugin7.zip`
+3. 新しいチャットで「Print craft の pcraft_status を呼んで、結果をそのまま見せて」→ 見ること: `node`（Windows の Desktop 同梱の Node の版）、`execPath`、`cwd`、`workspaceDirRaw` と `pluginZipRaw`（**選ぶ画面が返すパスの形**: ドライブ文字、`\`）、`workspace`（作られたか）、`token.set` / `length` / `appearsInArgv: false`（**env で届いたか**。公開の報告 MCPB issue #297）
+4. 設定画面でトークンが平文で見えないか（項目 3）
+5. 新しいチャットで「印刷屋の設定を作って」→ AI が print-craft のツールを呼ぶか。「使える print-craft のツールの名前を、前置きも含めてそのまま教えて」→ 名前の前置き（Mac は `lcl-Print_craft-`）
+6. 新しいチャットで「Print craft の kintone_probe を app 3740 で呼んで、結果をそのまま見せて」→ Mac と同じ（`app` 200、`pluginConfig` 200、`pluginConfigPreview` 403）か
+7. ログ（Windows の Desktop は `%APPDATA%\Claude\logs\` の見込み）に、試験用のトークンの文字列が無いか（項目 8）
+8. （任意）`server\hello.cjs` の `VERSION` を上げて作り直し、更新できるか（項目 9）。拡張機能を外して入れ直したとき、設定が残るか（項目 10）
 
 ## 後片付け
 
