@@ -10,7 +10,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const VERSION = "0.0.3-proto";
+const VERSION = "0.0.4-proto";
 const PRINT_CRAFT_PLUGIN_ID = "lcapkanpjdabgphknkabojmcfhonhkhp"; // print-craft-authoring/tools/src/meta.ts
 const KINTONE_HOST_SUFFIXES = [".cybozu.com", ".kintone.com", ".cybozu.cn"]; // tools/src/kintone-url.ts
 const RECEIVE_LIMIT = { app: 64 * 1024, pluginConfig: 2 * 1024 * 1024 }; // api-table.md の案
@@ -96,7 +96,7 @@ const TOOLS = [
   { name: "pcraft_workspace_status", description: "印刷屋プラグイン（Print craft）の帳票の設定を置く作業フォルダーの診断（起動時に固定したフォルダー、environments.json の有無）", inputSchema: strict({ workspaceId: { type: "string" } }), annotations: RO },
   {
     name: "kintone_probe",
-    description: "（任意。試験用の kintone だけ）API トークンで app の API とプラグインの設定情報の API（pull が使う API ラボ）が通るかを、HTTP の状態とエラーコードだけで返す。GET だけ",
+    description: "（任意。試験用の kintone だけ）印刷屋プラグイン（Print craft）の pull の確かめ: API トークンで app の API と、プラグインの設定情報の API（API ラボ。運用環境と動作テスト環境）が通るかを、HTTP の状態とエラーコードだけで返す。GET だけ",
     inputSchema: strict({ app: { type: "integer", minimum: 1 } }, ["app"]),
     annotations: { readOnlyHint: true, openWorldHint: true }
   }
@@ -205,8 +205,10 @@ async function main() {
         const app = Number(input.app);
         if (!Number.isSafeInteger(app) || app < 1) return envelope({ ok: false, status: "invalid", error: { code: "ArgumentError", message: "app は正の整数" } }, true);
         const appResult = await probe(base.origin, token, "app", { id: app }, RECEIVE_LIMIT.app);
+        // 運用環境（pull。資料の権限: レコード閲覧とレコード追加）と、動作テスト環境（pull --preview。資料の権限: アプリ管理）
         const pluginConfig = await probe(base.origin, token, "app/plugin/config", { app, id: PRINT_CRAFT_PLUGIN_ID }, RECEIVE_LIMIT.pluginConfig);
-        return envelope({ ok: true, status: "ok", result: { app: appResult, pluginConfig } });
+        const pluginConfigPreview = await probe(base.origin, token, "preview/app/plugin/config", { app, id: PRINT_CRAFT_PLUGIN_ID }, RECEIVE_LIMIT.pluginConfig);
+        return envelope({ ok: true, status: "ok", result: { app: appResult, pluginConfig, pluginConfigPreview } });
       }
       default:
         return envelope({ ok: false, status: "failed", error: { code: "ArgumentError", message: `知らないツール: ${name}` } }, true);

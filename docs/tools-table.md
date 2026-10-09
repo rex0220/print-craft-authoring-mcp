@@ -28,10 +28,10 @@
 | `pcraft_files` | ① | 出す | 出す | ○ | `{ workspaceId, app }` | アプリのフォルダーのファイル（今の設定、`-edit.json`、新しい帳票、records、out） | — | `files` | B1 |
 | `pcraft_take` | ① | 出す | 出す | — | `{ workspaceId }` | 移したファイル | `inbox/` から `kintone/<アプリ>/`（`inbox/` の元を消す）。④ | `take` | B1 |
 | `pcraft_edit` | ① | 出す | 出す | — | `{ workspaceId, app }` か `{ workspaceId, path }` | 写した `-edit.json` のパス | `kintone/<開発>/<アプリ>/*-edit.json`。④ | `edit` | B1 |
-| `pcraft_pull` | ① | 出す | 出す | — | `{ workspaceId, app, preview?, guestSpaceId? }`（`--force` は受け付けない） | 保存したファイル | `settings/`、`kintone/<アプリ>/`（新しいファイル名で増やすだけ）。④ | `pull` | B1 |
+| `pcraft_pull` | ① | 出す | 出す（運用環境だけ） | — | `{ workspaceId, app, preview?, guestSpaceId? }`（`--force` は受け付けない。Desktop は `preview` を受け付けない） | 保存したファイル | `settings/`、`kintone/<アプリ>/`（新しいファイル名で増やすだけ）。④ | `pull` | B1 |
 | `pcraft_diff` | ① | 出す | 出す | ○ | `{ workspaceId, before, after, derived? }` | ボタン単位の差分 | — | `diff` | B1 |
 
-`pcraft_pull` は kintone の API ラボ（プラグインの設定情報を取得する API）を有効にした環境だけで動く。この API は API トークンで使える API の一覧に載っておらず、API トークンだけの Desktop の最初の版では失敗する見込み（要確認 0-4）。使えなければ Desktop では `pcraft_pull` を出さず、印刷屋の設定画面でダウンロード → `inbox/` → `pcraft_take` にする（② api-table.md 3 章）。
+`pcraft_pull` は kintone の API ラボ（プラグインの設定情報を取得する API）を有効にした環境だけで動く。この API は API トークンで使える API の一覧に載っていないが、**閲覧だけの API トークンで運用環境の設定を取れた**（2026-10-09 試作 0-4）。動作テスト環境（`preview`）はアプリ管理の権限が要るので、Desktop では受け付けない。失敗したら印刷屋の設定画面でダウンロード → `inbox/` → `pcraft_take` を案内する（② api-table.md 3 章）。
 
 ## 2. 担当の分け方
 
