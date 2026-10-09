@@ -53,13 +53,18 @@ let scrubRoots: RegExp[] = [];
 
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+/** パスの前後の区切りとみなす文字（空白、引用符、括弧、句読点など）。これ以外の文字が続く・前にあるときは、別のパスの一部として置き換えない */
+const DELIMS = "\\s\"'`()（）「」『』【】\\[\\]<>{}、。，,:：;；=";
+
 /**
  * 作業フォルダーの絶対パスに当たる正規表現。区切りは / と \ のどちらでも、Windows は大文字小文字を区別しない。
- * 後ろが区切り（続きは作業フォルダーからの相対として残す）か、文の終わり・空白・括弧・句読点・引用符のときだけ当てる（/work/app で /work/app-copy に当てない。Codex の B1 3 回目 MINOR 2）
+ * 前が文の始まりか区切りの文字（/other/work/app の途中に当てない）、後ろがパスの区切り（続きは作業フォルダーからの相対として残す）か、
+ * 文の終わり・区切りの文字のときだけ当てる（/work/app で /work/app-copy に当てない。Codex の B1 3 回目 MINOR 2、4 回目 MINOR 1）。
+ * 「場所/work/app」のように区切りの文字の無いものは置き換えない（ホームのフォルダーは scrubHome が ~ にする）
  */
 export function rootPattern(root: string, platform: NodeJS.Platform = process.platform): RegExp {
   const body = root.split(/[\\/]+/).map(escapeRe).join("[\\\\/]+");
-  return new RegExp(`${body}(?:[\\\\/]+|(?=$|[\\s"'()（）「」、。,:：]))`, platform === "win32" ? "gi" : "g");
+  return new RegExp(`(?<=^|[${DELIMS}])${body}(?:[\\\\/]+|(?=$|[${DELIMS}]))`, platform === "win32" ? "gi" : "g");
 }
 
 /** 誤りの文から除く作業フォルダー（起動のときに登録済み・設定の作業フォルダーを渡す。長いものから置き換える） */

@@ -15,8 +15,9 @@ export interface ServerContext {
   env: Env;
   log: (line: string) => void;
   /**
-   * 印刷屋のエンジン（中核が 1 プロセスに 1 つだけ読む。失敗したら次の呼び出しでやり直す）。読み込んだ後に別の zip（別の作業フォルダーの .env など）や
-   * 変わった zip を渡すと、中核が PluginZipError（zip-changed）で止める（前はここで最初のエンジンを返していた。Codex の B1 再レビュー MAJOR 2）
+   * 印刷屋のエンジン（中核が 1 プロセスに 1 つだけ読む）。zip のコードを動かす前の失敗（無い・読めない・別のプラグイン・版）は次の呼び出しでやり直すが、
+   * 動かし始めた後の失敗は、再接続（Desktop は再起動）まで PluginZipError（restart-required）。読み込んだ後に別の zip（別の作業フォルダーの .env など）や
+   * 変わった zip を渡すと、中核が PluginZipError（zip-changed）で止める（前はここで最初のエンジンを返していた。Codex の B1 再レビュー MAJOR 2、3 回目 MAJOR 1）
    */
   engine(zip: string): Promise<Engine>;
   /** 中核のエンジンを使うツールは 1 つずつ動かす（エンジンは 1 つで setContext を挟むので重ねない）。動かしている間の console の出力は捨てる */

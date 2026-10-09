@@ -66,6 +66,16 @@ test("sanitizeMessage: 作業フォルダーはルートそのものか区切り
   assert.equal(sanitizeMessage("C:\\Users\\a\\ws2\\x.json"), "C:\\Users\\a\\ws2\\x.json");
   assert.equal(sanitizeMessage("\\\\srv\\share\\ws\\records\\3.json"), "records\\3.json", "UNC");
   assert.ok(rootPattern("/a/b").flags.includes("g") && !rootPattern("/a/b").flags.includes("i"));
+  setScrubRoots(["/work/app"]);
+  for (const [input, expected] of [
+    ["[/work/app]", "[（作業フォルダー）]"],
+    ["</work/app>", "<（作業フォルダー）>"],
+    ["`/work/app`", "`（作業フォルダー）`"],
+    ["/work/app; 次", "（作業フォルダー）; 次"],
+    ["PCRAFT_X=/work/app/settings/a.json", "PCRAFT_X=settings/a.json"],
+    ["/other/work/app/x と /work/app/y", "/other/work/app/x と y"],
+    ["場所/work/app/x", "場所/work/app/x"]
+  ]) assert.equal(sanitizeMessage(input), expected, `4 回目 MINOR 1: ${input}`);
   setScrubRoots(["/"]);
   assert.equal(sanitizeMessage("/x/y"), "/x/y", "短すぎるルート（/ など）は置き換えない");
   setScrubRoots([]);
