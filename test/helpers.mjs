@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 
@@ -28,11 +28,14 @@ export function makeWorkspace(prefix = "pcraft-mcp-") {
   return root;
 }
 
-/** サーバーを起動してクライアントでつなぐ。応答と標準エラーを集める（秘密の値が出ないかの確かめ） */
-export async function connect(args, env = {}) {
+/** 試験のときだけ kintone の偽物を読み込ませる（Node の --import。test/mock-fetch.mjs） */
+export const MOCK_FETCH = pathToFileURL(path.join(here, "mock-fetch.mjs")).href;
+
+/** サーバーを起動してクライアントでつなぐ。応答と標準エラーを集める（秘密の値が出ないかの確かめ）。opt.mockFetch で kintone の偽物 */
+export async function connect(args, env = {}, opt = {}) {
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [SERVER, ...args],
+    args: [...(opt.mockFetch ? ["--import", MOCK_FETCH] : []), SERVER, ...args],
     env: { PATH: process.env.PATH ?? "", KINTONE_API_TOKEN: SECRET, ...env },
     cwd: SPAWN_CWD,
     stderr: "pipe"
@@ -56,9 +59,9 @@ export async function connect(args, env = {}) {
 }
 
 /** Claude Code の形（--surface claude-code --roots [...]）で起動 */
-export const connectClaudeCode = (roots, env = { PCRAFT_PLUGIN_ZIP: ZIP }) => connect(["--surface", "claude-code", "--roots", JSON.stringify(roots)], env);
+export const connectClaudeCode = (roots, env = { PCRAFT_PLUGIN_ZIP: ZIP }, opt = {}) => connect(["--surface", "claude-code", "--roots", JSON.stringify(roots)], env, opt);
 /** Desktop の形（--surface desktop --workspace-dir …）で起動 */
-export const connectDesktop = (dir, env = { PCRAFT_PLUGIN_ZIP: ZIP }) => connect(["--surface", "desktop", "--workspace-dir", dir], env);
+export const connectDesktop = (dir, env = { PCRAFT_PLUGIN_ZIP: ZIP }, opt = {}) => connect(["--surface", "desktop", "--workspace-dir", dir], env, opt);
 
 export const sc = (r) => r.structuredContent;
 export const saveInput = (root, p, content = SETTINGS_TEXT, extra = {}) => ({ workspaceId: root, path: p, content, fields: "fields/3740.json", expectedAbsent: true, ...extra });

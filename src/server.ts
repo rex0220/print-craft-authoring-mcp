@@ -9,8 +9,11 @@ import { serveStdio, StdioServerTransport } from "@modelcontextprotocol/server/s
 import { WorkspaceBinding, isUnset, parseArgs } from "./binding.ts";
 import { createServerContext, type Env, type ServerContext } from "./context.ts";
 import { registerButtons } from "./tools/buttons.ts";
+import { registerFields } from "./tools/fields.ts";
+import { registerKintoneGet } from "./tools/kintone-get.ts";
 import { registerNormalize } from "./tools/normalize.ts";
 import { registerPreview } from "./tools/preview.ts";
+import { registerRecord } from "./tools/record.ts";
 import { registerSaveSettings } from "./tools/save.ts";
 import { registerStatus } from "./tools/status.ts";
 import { registerUpdateButton } from "./tools/update-button.ts";
@@ -45,6 +48,10 @@ export function createServer(ctx: ServerContext): McpServer {
   registerButtons(server, ctx);
   registerNormalize(server, ctx);
   registerPreview(server, ctx);
+  registerFields(server, ctx);
+  registerRecord(server, ctx);
+  // Desktop だけ: kintone の GET（Claude Code では公式の kintone MCP。同じことをするツールを出さない。5.1）
+  if (ctx.surface === "desktop") registerKintoneGet(server, ctx);
   return server;
 }
 
