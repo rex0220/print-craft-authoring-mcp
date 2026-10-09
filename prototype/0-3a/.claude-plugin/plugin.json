@@ -1,0 +1,17 @@
+{
+  "name": "print-craft-proto",
+  "version": "0.0.1",
+  "description": "段階 0-3a の試作（print-craft MCP の作業フォルダーの結び付け、直接の Write / Edit の拒否、設定項目、スキル）。秘密の値は使わない",
+  "author": {
+    "name": "rex0220"
+  },
+  "userConfig": {
+    "workspaceRoots": {
+      "type": "string",
+      "multiple": true,
+      "title": "印刷屋の作業フォルダー",
+      "description": "信頼する作業フォルダーの絶対パス（試作。初めて使うときに確認の画面から足す）",
+      "required": false
+    }
+  }
+}
