@@ -12,6 +12,13 @@ type $ = EngineInterface
 /** 作業フォルダーを使うツール（① と ③）。サーバーの名前の付き方は 0-3a で確かめるので、末尾のツール名で捕まえる */
 const WORKSPACE_TOOL = /^mcp__.+__pcraft_(save_settings|workspace_status|update_button|normalize|preview|buttons|fields|record)$/
 
+/**
+ * 登録した後の案内。設定（/config）を変えてもプラグインの MCP サーバーは起動し直さず、/mcp の再接続か
+ * Claude Code の起動し直しで新しい値が届く（2026-10-09 の手での確認）。登録は作業フォルダーごとに最初の 1 回だけなので、
+ * そのときだけ利用者に再接続してもらう（2026-10-09 Takashi）
+ */
+const RECONNECT = '/mcp で print-craft を再接続（Reconnect）するか、Claude Code を起動し直してから、もう一度実行してください'
+
 /** 直接の Write / Edit を拒否するパス（作業フォルダーからの相対。区切りは / にそろえる） */
 const PROTECTED = [/^kintone(\/|$)/, /^settings\/.+\.json$/i]
 
@@ -58,9 +65,28 @@ async function placed($: $, p: string): Promise<string | undefined> {
 
 const isUnder = (child: string, parent: string) => child === parent || child.startsWith(parent + sepOf(parent))
 
+/**
+ * 設定項目の値を、パスの並びにする。2026-10-09 の手での確認で、文字列の配列（"multiple": true）の設定項目は
+ * /config の行にならなかったので、文字列 1 つに JSON の配列（["/Users/…"]）を入れる形にした
+ */
+function rootsOf(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String)
+  if (typeof value !== 'string' || value.trim() === '') return []
+  const t = value.trim()
+  if (t.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(t)
+      return Array.isArray(parsed) ? parsed.map(String) : []
+    } catch {
+      return []
+    }
+  }
+  return [t]
+}
+
 /** 登録済みの作業フォルダー（設定項目）を実際のパスに直す */
 async function registeredRoots($: $, value: unknown): Promise<string[]> {
-  const list = Array.isArray(value) ? value : typeof value === 'string' && value !== '' ? [value] : []
+  const list = rootsOf(value)
   const out: string[] = []
   for (const v of list) {
     const r = await realDir($, String(v))
@@ -89,19 +115,36 @@ export const register: Register = (on, options) => {
     const row = await rootsRow($)
     const { session, matched } = await locate($, row?.value ?? options.workspaceRoots)
     if (session === undefined) return { deny: 'print-craft: セッションのフォルダーを解決できない' }
-    if (matched.length === 1) return next({ ...e, workspaceId: matched[0] })
+    if (matched.length === 1) {
+      const result = await next({ ...e, workspaceId: matched[0] })
+      // フックでは登録済みなのに、サーバーが「登録済みの作業フォルダーでない」と断った = サーバーが古い設定のまま動いている
+      const text = JSON.stringify((result as { result?: unknown }).result ?? '')
+      if (text.includes('WorkspaceError') && text.includes('登録済みの作業フォルダーでない'))
+        return { deny: `print-craft: 作業フォルダーは登録済みだが、print-craft MCP が古い設定のまま動いている。${RECONNECT}` }
+      return result
+    }
     if (matched.length > 1) return { deny: 'print-craft: 登録済みの作業フォルダーが 2 つ以上合う。/config で整理する' }
+    // 登録先の行が無ければ、確認の画面を出す前に断る（利用者に選ばせてから断らない）。見つかった行の名前（値は出さない）を付ける
+    if (row === undefined) {
+      const keys = (await $.config.list()).map(r => r.key).filter(k => k.startsWith($.plugin.name))
+      return { deny: `print-craft: 設定項目 ${$.plugin.name}.workspaceRoots の行が見つからない（このプラグインの行: ${keys.join(', ') || '無し'}）` }
+    }
     // 未登録: 利用者本人に確認する（AI は答えられない。headless では拒否される）
+    let dismissed = false
     const answer = await $.ui
       .ask(`このフォルダーを印刷屋の作業フォルダーとして登録しますか？（${session}）`, ['登録する', '登録しない'])
-      .catch(() => undefined)
-    if (answer !== '登録する') return { deny: 'print-craft: 作業フォルダーが登録されていない（利用者が登録しなかった）' }
-    if (row === undefined) return { deny: 'print-craft: 設定項目 workspaceRoots の行が見つからない' }
-    const current = Array.isArray(row.value) ? row.value : []
-    const set = await $.config.set({ key: row.key, value: [...current, session] })
+      .catch(() => {
+        dismissed = true
+        return undefined
+      })
+    if (dismissed) return { deny: 'print-craft: 作業フォルダーの登録の確認に答えが無かった（閉じた、または確認の画面を出せない実行）' }
+    // 試作: 返ってきた答えの形を確かめるため、断るときに答えをそのまま付ける（選んだ文字だけ。秘密の値ではない）
+    if (answer !== '登録する') return { deny: `print-craft: 利用者が作業フォルダーを登録しなかった（答え: ${JSON.stringify(answer)?.slice(0, 200)}）` }
+    const current = rootsOf(row.value)
+    const set = await $.config.set({ key: row.key, value: JSON.stringify([...current, session]) })
     if ('deny' in set && set.deny !== undefined) return { deny: `print-craft: 登録できなかった（${set.deny}）` }
     // 設定を変えるとプラグインが読み込み直される。同じ呼び出しは続けない（実装案 4.1）
-    return { deny: 'print-craft: 作業フォルダーを登録しました。もう一度実行してください' }
+    return { deny: `print-craft: 作業フォルダーを登録しました。${RECONNECT}` }
   }).catch(($, e, next) => (next.called ? next(e) : { deny: 'print-craft: 作業フォルダーの確認に失敗した' }))
 
   // 4.2: 直接の Write / Edit で settings/**/*.json と kintone/** を変えない（登録の状態と関係なく）
@@ -126,7 +169,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     const result = await next(e)
     const row = await rootsRow($).catch(() => undefined)
-    const n = Array.isArray(row?.value) ? row.value.length : 0
+    const n = rootsOf(row?.value).length
     $.ui.toast(`print-craft（試作）: 登録済みの作業フォルダー ${n} 件`)
     return result
   })

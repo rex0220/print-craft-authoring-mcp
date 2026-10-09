@@ -22,10 +22,10 @@ function fold(p: string): string {
   return joined
 }
 
-type Setup = { session?: string; roots?: string[]; brokenRoot?: boolean }
+type Setup = { session?: string; roots?: string[]; brokenRoot?: boolean; noRow?: boolean; mcpAnswer?: Record<string, unknown> }
 
 /** 試験の on に、エンジンの代わりの答えを並べる。返り値は、下まで届いた tool.call の記録 */
-function engine(on: any, { session = '/ws', roots = [], brokenRoot = false }: Setup) {
+function engine(on: any, { session = '/ws', roots = [], brokenRoot = false, noRow = false, mcpAnswer }: Setup) {
   const reached: Array<Record<string, unknown>> = []
   // $ の呼び出しの答えは { value }（OpValueOf）。失敗させるときは { deny }
   on('session.root', () => (brokenRoot ? { deny: 'root is broken' } : { value: session }))
@@ -37,8 +37,11 @@ function engine(on: any, { session = '/ws', roots = [], brokenRoot = false }: Se
     if (FILES.has(real)) return { value: { kind: 'file', size: 1, mtimeMs: 0, isLink, realPath: real } }
     return { deny: `ENOENT ${e.path}` }
   })
+  // 設定項目は文字列 1 つに JSON の配列（2026-10-09 の手での確認で、文字列の配列の設定項目は /config の行にならなかった）
   on('config.list', () => ({
-    value: [{ key: `${PLUGIN}.workspaceRoots`, label: '印刷屋の作業フォルダー', kind: 'text', value: roots, provider: { kind: 'plugin', name: PLUGIN }, isLocked: false }]
+    value: noRow
+      ? [{ key: 'theme', label: 'Theme', kind: 'choice', value: 'dark', provider: { kind: 'engine' }, isLocked: false }]
+      : [{ key: `${PLUGIN}.workspaceRoots`, label: '印刷屋の作業フォルダー', kind: 'text', value: JSON.stringify(roots), provider: { kind: 'plugin', name: PLUGIN }, isLocked: false }]
   }))
   on('tool.call', { tool: ['Write', 'Edit'] }, ($: unknown, e: Record<string, unknown>) => {
     reached.push(e)
@@ -46,7 +49,7 @@ function engine(on: any, { session = '/ws', roots = [], brokenRoot = false }: Se
   })
   on('tool.call', { tool: /^mcp__/ }, ($: unknown, e: Record<string, unknown>) => {
     reached.push(e)
-    return { result: { content: [{ type: 'text', text: 'ok' }] } }
+    return mcpAnswer ?? { result: { content: [{ type: 'text', text: 'ok' }] } }
   })
   return reached
 }
@@ -137,6 +140,30 @@ describe('4.1 workspaceId の書き換え', () => {
     const r = await $.tool.call({ tool: MCP('pcraft_save_settings'), workspaceId: '/ws', path: 'settings/x.json', content: '{}', expectedAbsent: true } as any)
     expect(isDenied(r)).toBe(true)
     expect(reached.filter(e => String(e.tool).startsWith('mcp__')).length).toBe(0)
+  })
+
+  test('サーバーが古い設定のまま断ったら、再接続を案内する', async ($, on) => {
+    engine(on, {
+      roots: ['/ws'],
+      mcpAnswer: { result: { content: [{ type: 'text', text: '{"ok":false,"status":"denied","error":{"code":"WorkspaceError","message":"登録済みの作業フォルダーでない"}}' }], isError: true } }
+    })
+    const r = await $.tool.call({ tool: MCP('pcraft_save_settings'), workspaceId: '/ws', path: 'settings/x.json', content: '{}', expectedAbsent: true } as any)
+    expect(isDenied(r)).toBe(true)
+    expect(denyText(r)).toMatch(/再接続/)
+  })
+
+  test('登録先の行が無ければ、確認の画面を出す前に拒否し、見つかった行の名前を出す', async ($, on) => {
+    const reached = engine(on, { roots: [], noRow: true })
+    let asked = false
+    on('tool.call', { tool: 'AskUserQuestion' }, () => {
+      asked = true
+      return { deny: 'no one to ask' }
+    })
+    const r = await $.tool.call({ tool: MCP('pcraft_workspace_status'), workspaceId: '' } as any)
+    expect(isDenied(r)).toBe(true)
+    expect(denyText(r)).toMatch(/行が見つからない/)
+    expect(asked).toBe(false)
+    expect(reached.length).toBe(0)
   })
 
   test('フックが失敗したら拒否する（fail-closed）', async ($, on) => {
