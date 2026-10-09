@@ -7,8 +7,7 @@
 ```
 [print-craft-authoring]（公開、MIT）
   ├─ テンプレート（CLAUDE.md、.claude/settings.json、.mcp.json = 公式の kintone MCP、policy/、environments.example.json）
-  ├─ npm @rex0220/print-craft-authoring-core   … 共通の中核（ライブラリ）
-  └─ npm @rex0220/print-craft-authoring-tools  … 今の CLI（core を使う）
+  └─ npm @rex0220/print-craft-authoring-tools  … 今の CLI と、共通の中核（入口 /core。2026-10-09 Takashi「B」で別のパッケージにしないと決めた）
 
 [print-craft-authoring-mcp]（公開、MIT）
   ├─ print-craft MCP のビルド（core と依存を 1 つのファイルに束ねる。8.3）

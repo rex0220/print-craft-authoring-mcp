@@ -5,9 +5,11 @@
  *     ツールの workspaceId は省略できる。渡されて固定のフォルダーと違えば拒否
  *   - Claude Code（--surface claude-code）: 登録済みの作業フォルダー（--roots。設定項目の JSON の配列の文字列）を起動時に実際のパスに直す。
  *     絶対パスでない・存在しない・フォルダーでないものは捨てる。ツールの workspaceId（プラグインのフックが入れる）が登録済みのどれかと同じでなければ拒否
- * 設定項目の値は、前後の空白と両端の引用符を外してから使う（Windows の「パスのコピー」。試作 0-4）。値は AI の引数では変えられない。
+ * 設定項目の値は、前後の空白と両端の引用符を外し（Windows の「パスのコピー」。試作 0-4）、先頭の ~ をホームのフォルダーにしてから使う
+ * （設定の欄はシェルを通らないので ~ が展開されない。試作 0-3b の Desktop で ~/… を入れて「絶対パスでない」になった）。値は AI の引数では変えられない。
  */
 import { existsSync, mkdirSync, realpathSync, statSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { unquote } from "./core.ts";
 
@@ -36,6 +38,15 @@ export function isUnset(v: string | undefined): boolean {
 }
 
 const fold = (p: string): string => (process.platform === "win32" ? p.toLowerCase() : p);
+
+/** 先頭の ~ か ~/（~\）だけをホームのフォルダーにする（~user の形はそのまま＝絶対パスでないので断る） */
+export function expandHome(p: string): string {
+  if (p === "~") return os.homedir();
+  return /^~[\\/]/.test(p) ? path.join(os.homedir(), p.slice(2)) : p;
+}
+
+/** 設定項目のパスの値: 引用符を外し、~ を展開する */
+const settingPath = (v: string): string => expandHome(unquote(v));
 
 export function parseArgs(argv: readonly string[]): ServerArgs {
   let surface: string | undefined;
@@ -66,7 +77,7 @@ export interface FixedWorkspace {
 /** Desktop の作業フォルダーを確かめて固定する */
 export function fixWorkspace(raw: string | undefined): FixedWorkspace {
   if (isUnset(raw)) return { problem: "作業フォルダーが設定されていない。拡張機能の設定で作業フォルダーを選ぶ" };
-  const dir = unquote(raw as string);
+  const dir = settingPath(raw as string);
   if (!path.isAbsolute(dir)) return { problem: "作業フォルダーが絶対パスでない。拡張機能の設定で選び直す" };
   let createdNow = false;
   if (!existsSync(dir)) {
@@ -112,7 +123,7 @@ export function canonicalRoots(raw: string | undefined): { roots: string[]; drop
   let dropped = 0;
   for (const v of list) {
     try {
-      const p = unquote(v);
+      const p = settingPath(v);
       if (!path.isAbsolute(p)) throw new Error("not absolute");
       const real = realpathSync(p);
       if (!statSync(real).isDirectory()) throw new Error("not a directory");
@@ -161,7 +172,7 @@ export class WorkspaceBinding {
 
   private same(candidate: string, root: string): boolean {
     try {
-      return fold(realpathSync(unquote(candidate))) === fold(root);
+      return fold(realpathSync(settingPath(candidate))) === fold(root);
     } catch {
       return false;
     }

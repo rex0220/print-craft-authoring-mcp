@@ -1,6 +1,6 @@
 {
   "name": "print-craft-mcp-proto-0-3b",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "private": true,
   "description": "段階 0-3b の試作: 共通の中核（print-craft-authoring の tools/src）を呼ぶ print-craft MCP の保存のツールを、Claude Code のプラグインと .mcpb の両方から試す",
   "license": "MIT",

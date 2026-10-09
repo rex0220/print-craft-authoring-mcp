@@ -227,3 +227,27 @@ test("秘密の値（環境変数の API トークン）を応答・標準エラ
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("desktop: 設定の作業フォルダーの先頭の ~ をホームのフォルダーにする（設定の欄はシェルを通らない。0-3b の Desktop で見つけた）", { skip }, async () => {
+  const home = realpathSync(mkdtempSync(path.join(os.tmpdir(), "pcraft-0-3b-home-")));
+  try {
+    const s = await connect(["--surface", "desktop", "--workspace-dir", "~/pcraft-proto-desktop"], { PCRAFT_PLUGIN_ZIP: ZIP, HOME: home, USERPROFILE: home });
+    try {
+      const st = sc(await s.call("pcraft_status", {}));
+      assert.deepEqual(st.result.workspace, { configured: true, path: path.join(home, "pcraft-proto-desktop") });
+      assert.ok(existsSync(path.join(home, "pcraft-proto-desktop")));
+    } finally {
+      await s.close();
+    }
+    const s2 = await connect(["--surface", "desktop", "--workspace-dir", "~someone/x"], { PCRAFT_PLUGIN_ZIP: ZIP, HOME: home, USERPROFILE: home });
+    try {
+      const st = sc(await s2.call("pcraft_status", {}));
+      assert.equal(st.result.workspace.configured, false, "~user の形は展開しない（絶対パスでない）");
+      assert.match(st.result.workspace.problem, /絶対パスでない/);
+    } finally {
+      await s2.close();
+    }
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});

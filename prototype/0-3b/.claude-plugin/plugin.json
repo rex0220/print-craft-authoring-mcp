@@ -1,6 +1,6 @@
 {
   "name": "print-craft-proto",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "段階 0-3b の試作（print-craft MCP の保存のツール pcraft_save_settings が共通の中核を呼ぶ。作業フォルダーの結び付け、直接の Write / Edit の拒否）。秘密の値は使わない",
   "author": {
     "name": "rex0220"
