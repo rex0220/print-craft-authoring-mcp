@@ -101,15 +101,15 @@ mkdir -p ~/pcraft-b1-ws && cd ~/pcraft-b1-ws
 
 | # | すること | 期待 | 結果 |
 | --- | --- | --- | --- |
-| 1 | `/config` で print-craft の「印刷屋プラグインの zip」と「kintone の接続のファイル」（どちらも絶対パス）を入れて、`/mcp` で再接続 | `/mcp` に print-craft とツール 15 | |
-| 2 | 「印刷屋で見積書の帳票を作りたい」 | `pcraft_docs` が呼ばれ、目次に版と作業の順 | |
-| 3 | （続き）アプリの番号を伝える | `pcraft_status`（`capabilities.kintone.ready: true`）→ 作業フォルダーの登録の確認 → 再接続 → `pcraft_fields` で項目の要約。`kintone/dev/<番号>-<アプリ名>/fields.json` と印 | |
-| 4 | 「作業フォルダーの診断を見せて」 | `pcraft_workspace_status` に profile、トークンが使えるか、アプリのフォルダー（`ok`）。トークンと環境変数の名前は出ない | |
-| 5 | （続き）代表のレコードを決める | `pcraft_record` で形だけ（値は出ない）。アプリのフォルダーの `records/` | |
-| 6 | （続き）帳票を書いて保存 | `pcraft_save_settings` がアプリのフォルダーに `ok`（`trustedOrigin` が接続先のホスト）、警告を伝える | |
-| 7 | （続き）preview | `pcraft_preview` がアプリのフォルダーの `out/` に書く。Chrome で開く | |
-| 8 | 「settings/x.json に Write で直接書いて」 | フックが拒否 | |
-| 9 | 「同じ名前でもう一度保存して」 | `conflict`（ツールを呼んで返った結果を伝える） | |
+| 1 | `/config` で print-craft の「印刷屋プラグインの zip」と「kintone の接続のファイル」（どちらも絶対パス）を入れて、`/mcp` で再接続 | `/mcp` に print-craft とツール 15 | 2026-10-10 Mac（0.1.3）: **期待どおり**（再接続の後、`pcraft_status` と `pcraft_workspace_status` が `ready: true`。zip 版 7、接続のファイルの profile 4 つ） |
+| 2 | 「印刷屋で見積書の帳票を作りたい」 | `pcraft_docs` が呼ばれ、目次に版と作業の順 | 2026-10-10 Mac（0.1.3）: おおむね期待どおり。呼び出しは 2 回（status と workspace_status とみられる）で、`pcraft_docs` が呼ばれたかは見えなかった。指示文（Claude Code には届く）で手順を知っていて、profile の表を出し、アプリの番号・用紙・PDF の扱いを聞いた |
+| 3 | （続き）アプリの番号を伝える | `pcraft_status`（`capabilities.kintone.ready: true`）→ 作業フォルダーの登録の確認 → 再接続 → `pcraft_fields` で項目の要約。`kintone/dev/<番号>-<アプリ名>/fields.json` と印 | 2026-10-10 Mac（0.1.3）: **期待どおり**（アプリ 3740「見積書(印刷屋)」、profile dev、アプリのフォルダー）。ただ、項目の対応を見せる前に、雛形（R1）の形で作って保存まで進めた（最初に「決まっていなければ既定の形で作る」と言ったとおり）。保存の後に、帳票の場所と項目コードの表、使わなかった項目、仮の値（社名・住所・社印）を示した |
+| 4 | 「作業フォルダーの診断を見せて」 | `pcraft_workspace_status` に profile、トークンが使えるか、アプリのフォルダー（`ok`）。トークンと環境変数の名前は出ない | 2026-10-10 Mac（0.1.3）: **期待どおり**（profile ごとの接続先・ゲストスペース・認証の種類・ログインできるか、アプリのフォルダー `ok`、zip。秘密の値と環境変数の名前は出ない） |
+| 5 | （続き）代表のレコードを決める | `pcraft_record` で形だけ（値は出ない）。アプリのフォルダーの `records/` | 2026-10-10 Mac（0.1.3）: **期待どおり**（7 の中で。レコード 3 の形だけ: 明細 5 行、商品名の最長 27 文字、単価の最大 7 桁、備考 2 行、見積ファイルに 1 件 → 「kintone ではボタンが出ない」と伝えた） |
+| 6 | （続き）帳票を書いて保存 | `pcraft_save_settings` がアプリのフォルダーに `ok`（`trustedOrigin` が接続先のホスト）、警告を伝える | 2026-10-10 Mac（0.1.3）: **期待どおり**（3 で `ok`、警告 `formula.rawHtml` と大きさを伝えた。6 では保存済みを確かめて保存し直さなかった） |
+| 7 | （続き）preview | `pcraft_preview` がアプリのフォルダーの `out/` に書く。Chrome で開く | 2026-10-10 Mac（0.1.3）: **期待どおり**（1 ページ、式の誤り 0、`out/見積書.html`。中身を読まず、AI はブラウザーを起動しない。開き方として利用者が実行する `! open -a "Google Chrome" …` を案内。反映の手順も添えた） |
+| 8 | 「settings/x.json に Write で直接書いて」 | フックが拒否 | 2026-10-10 Mac（0.1.3）: **期待どおり**（フックが断り、shell などの回り道はせず、`pcraft_save_settings` で保存する案を出した） |
+| 9 | 「同じ名前でもう一度保存して」 | `conflict`（ツールを呼んで返った結果を伝える） | 2026-10-10 Mac（0.1.3）: **期待どおり**（呼んで `conflict` とツールの文をそのまま伝えた。消す・上書きの回り道はせず、「消すかはご自身で」） |
 | 10 | 接続のファイルの dev の `baseUrl` を別のサブドメインに書き換えて `pcraft_fields` | `conflict`（`app-identity-conflict`）。kintone に送らない。元に戻す | |
 
 ### Desktop（`.mcpb`）
