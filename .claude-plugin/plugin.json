@@ -5,6 +5,17 @@
   "author": {
     "name": "rex0220"
   },
+  "homepage": "https://github.com/rex0220/print-craft-authoring-mcp",
+  "repository": "https://github.com/rex0220/print-craft-authoring-mcp",
+  "license": "MIT",
+  "keywords": [
+    "kintone",
+    "print-craft",
+    "印刷屋",
+    "mcp"
+  ],
+  "privacyPolicyUrl": "https://github.com/rex0220/print-craft-authoring-mcp/blob/main/PRIVACY.md",
+  "supportUrl": "https://github.com/rex0220/print-craft-authoring-mcp/issues",
   "userConfig": {
     "workspaceRoots": {
       "type": "string",

@@ -2,7 +2,9 @@
 
 kintone の印刷屋プラグイン（rex0220 Print craft）の帳票の設定 JSON を、検査（normalize）を通して作業フォルダーに保存・確認する **print-craft MCP**（Claude Code のプラグインと Claude Desktop の `.mcpb`）。中核は npm の [`@rex0220/print-craft-authoring-tools/core`](https://www.npmjs.com/package/@rex0220/print-craft-authoring-tools)。設計は [docs/プラグイン化の実装案.md](docs/プラグイン化の実装案.md)（kintone の接続は 15 章）。
 
-今は段階 B1（print-craft MCP の本体）。プラグインのスキルとフックの仕上げは B2、`.mcpb` のリリースは B3。
+今は段階 B2 の前（公開の前の関門。[docs/リリース手順.md](docs/リリース手順.md) の 0 章）。B1（print-craft MCP の本体）は済み。Claude Code のプラグインの配布は B2、`.mcpb` のリリースは B3。
+
+利用者向け: [PRIVACY.md](PRIVACY.md)（プライバシーポリシー）、[SECURITY.md](SECURITY.md)（脆弱性の報告と、受け入れた危険）、[CHANGELOG.md](CHANGELOG.md)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)（同梱の依存のライセンス）。
 
 ## 構成
 
@@ -12,8 +14,10 @@ kintone の印刷屋プラグイン（rex0220 Print craft）の帳票の設定 J
 | `guide/` | `pcraft_docs` の手順の章（print-craft MCP のツールで書いた） |
 | `references/template/` | テンプレートの `docs/` の写し（`scripts/sync-references.mjs`。元のコミットと sha256 は `SOURCE.json`） |
 | `compat.json` | 互換表 |
-| `build-mcp.mjs` | 1 つの CJS ファイルに束ねる → `dist/` |
+| `build-mcp.mjs` | 1 つの CJS ファイルに束ねる → `dist/`。束ねた依存の著作権表示 `THIRD_PARTY_NOTICES.md` も作る（`scripts/third-party-notices.mjs`。リポジトリのものと違えば止める） |
 | `build-mcpb.mjs` / `scripts/mcpb-verify.mjs` | `.mcpb` を作る → `dist-mcpb/print-craft.mcpb` / 検査 |
+| `scripts/build-plugin-zip.mjs` / `scripts/plugin-zip-verify.mjs` / `scripts/write-marketplace.mjs` | Claude Code のプラグインの zip を作る → `dist-plugin/print-craft-plugin-<版>.zip` / 検査 / リリースのときに `.claude-plugin/marketplace.json` を書く |
+| `scripts/forbidden-files.mjs`、`scripts/zip.mjs` | 入れてはいけないもの（認証情報、レコードの値、実案件の設定、本物の kintone のホスト名）の検査 / 無圧縮の zip |
 | `.claude-plugin/plugin.json`、`.mcp.json`、`hooks/` | Claude Code のプラグイン `print-craft` |
 | `test/` | 試験（束ねた本体を MCP のクライアントで起動する。kintone は `test/mock-fetch.mjs` の偽物） |
 | `prototype/` | 段階 0 の試作（0-3a、0-3b、0-4） |
@@ -78,12 +82,15 @@ kSQL との違い（print-craft の方が厳しい。同じファイルを共有
 
 隣に `print-craft`（印刷屋の zip `dist/print-craft-plugin7.zip`。試験だけ）があること。
 
-中核は npm の `@rex0220/print-craft-authoring-tools` 2.0.0（lockfile で固定。`compat.json` の `coreVersion` は `>=2.0.0 <3.0.0`、`coreApiVersion` は 2）。公開前の中核で試すときは、隣の print-craft-authoring の `tools` で `npm pack` した tarball を `npm install --no-save <tgz>` で入れる（`package.json` と lockfile は変えない）。
+中核は npm の `@rex0220/print-craft-authoring-tools` 2.0.1（lockfile で固定。`compat.json` の `coreVersion` は `>=2.0.1 <3.0.0`、`coreApiVersion` は 2）。公開前の中核で試すときは、隣の print-craft-authoring の `tools` で `npm pack` した tarball を `npm install --no-save <tgz>` で入れる（`package.json` と lockfile は変えない）。
 
 ```sh
 npm ci
 npm test                 # ビルド → 試験
 npm run verify:mcpb      # ビルド → .mcpb → 検査
+npm run verify:plugin    # ビルド → プラグインの zip → 検査（claude があれば plugin validate も）
+npm run notices          # 依存を変えたとき: THIRD_PARTY_NOTICES.md を作り直す（差分を見てコミット）
+node scripts/forbidden-files.mjs [--history]   # 入れてはいけないもの（--history は履歴のすべてのコミット）
 CLAUDE=~/.vscode/extensions/anthropic.claude-code-2.1.295-darwin-arm64/resources/native-binary/claude
 "$CLAUDE" plugin validate . && "$CLAUDE" plugin test .
 node scripts/sync-references.mjs   # テンプレートの資料を写し直す（compat.json の docsRevision も合わせる）

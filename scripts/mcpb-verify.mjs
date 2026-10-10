@@ -1,5 +1,6 @@
 // .mcpb の検査（実装案 8.3。試作 0-3b / 0-4 と kSQL の mcpb-verify.mjs を元にした）。
-//   1. zip を開いて、要るファイル・入れてはいけないもの・manifest の値（版、起動の形、設定項目の種類、秘密の値は env で渡すこと）
+//   1. zip を開いて、要るファイル・入れてはいけないもの（scripts/forbidden-files.mjs）・manifest の値（版、起動の形、設定項目の種類、秘密の値は env で渡すこと、配布元とプライバシーポリシー）、
+//      THIRD_PARTY_NOTICES.md がリポジトリのものと同じこと
 //   2. 展開して、Desktop と同じ形（node server/index.cjs + 引数 + 環境変数、起動の場所はドライブのいちばん上）で起動し、MCP のクライアント（SDK v2）で話す:
 //      指示の 1 行目に版、ツールの一覧が manifest と同じ（厳しいスキーマ）、pcraft_docs の目次、pcraft_status、pcraft_workspace_status、保存の ok / conflict / denied、
 //      kintone の接続のファイル（作業フォルダーの外）に書いた試験用の API トークンが引数・応答・標準エラーに出ないこと
@@ -9,6 +10,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+import { REPO_URL } from "../build-mcpb.mjs";
+import { problemsOf } from "./forbidden-files.mjs";
+import { eol, NOTICES_FILE } from "./third-party-notices.mjs";
+import { readZip } from "./zip.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const mcpbPath = path.join(root, "dist-mcpb", "print-craft.mcpb");
@@ -20,36 +25,14 @@ function assert(cond, message) {
   if (!cond) throw new Error(message);
 }
 
-function readZip(file) {
-  const zip = readFileSync(file);
-  const eocd = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
-  assert(eocd >= 0, "zip の終わりの目印が無い");
-  const count = zip.readUInt16LE(eocd + 10);
-  let off = zip.readUInt32LE(eocd + 16);
-  const entries = new Map();
-  for (let i = 0; i < count; i++) {
-    assert(zip.readUInt32LE(off) === 0x02014b50, "zip の中央ディレクトリが壊れている");
-    const method = zip.readUInt16LE(off + 10);
-    const size = zip.readUInt32LE(off + 20);
-    const nameLen = zip.readUInt16LE(off + 28);
-    const extraLen = zip.readUInt16LE(off + 30);
-    const commentLen = zip.readUInt16LE(off + 32);
-    const localOff = zip.readUInt32LE(off + 42);
-    const name = zip.subarray(off + 46, off + 46 + nameLen).toString("utf8");
-    assert(method === 0, `${name} が無圧縮でない`);
-    const dataOff = localOff + 30 + zip.readUInt16LE(localOff + 26) + zip.readUInt16LE(localOff + 28);
-    entries.set(name, zip.subarray(dataOff, dataOff + size));
-    off += 46 + nameLen + extraLen + commentLen;
-  }
-  return entries;
-}
-
 async function main() {
   assert(existsSync(ZIP), `印刷屋の zip が無い: ${ZIP}`);
   const entries = readZip(mcpbPath);
-  const expected = ["manifest.json", "server/index.cjs", "server/print-craft-mcp.cjs", "vendor/moment-with-locales.min.js", "vendor/moment.json", "LICENSE", "README.md"];
+  const expected = ["manifest.json", "server/index.cjs", "server/print-craft-mcp.cjs", "vendor/moment-with-locales.min.js", "vendor/moment.json", "LICENSE", NOTICES_FILE, "README.md"];
   assert(JSON.stringify([...entries.keys()].sort()) === JSON.stringify([...expected].sort()), `中身が違う: ${[...entries.keys()].join(", ")}`);
-  for (const p of entries.keys()) assert(!/(^|\/)(\.env|env\/|records\/|out\/|policy\/|settings\/|kintone\/)/.test(p), `入れてはいけないもの: ${p}`);
+  const problems = problemsOf(entries);
+  assert(!problems.length, `入れてはいけないもの:\n  ${problems.join("\n  ")}`);
+  assert(eol(entries.get(NOTICES_FILE).toString("utf8")) === eol(readFileSync(path.join(root, NOTICES_FILE), "utf8")), `${NOTICES_FILE} がリポジトリのものと違う`);
 
   const manifest = JSON.parse(entries.get("manifest.json").toString("utf8"));
   const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
@@ -69,6 +52,9 @@ async function main() {
   const plugin = JSON.parse(readFileSync(path.join(root, ".claude-plugin", "plugin.json"), "utf8"));
   for (const [k, v] of Object.entries(plugin.userConfig)) assert((v.sensitive === true) === /token|password|username/i.test(k), `プラグインの ${k} の sensitive（秘密の値の項目だけ）`);
   assert(JSON.stringify(manifest.compatibility?.platforms) === JSON.stringify(["darwin", "win32"]), "platforms");
+  // 配布元とプライバシーポリシー（kintone に接続するので要る。リリース手順 0-5・0-8）
+  assert(manifest.homepage === REPO_URL && manifest.repository?.type === "git" && manifest.repository.url === REPO_URL && manifest.support === `${REPO_URL}/issues`, "配布元（homepage、repository、support）");
+  assert(JSON.stringify(manifest.privacy_policies) === JSON.stringify([`${REPO_URL}/blob/main/PRIVACY.md`]) && existsSync(path.join(root, "PRIVACY.md")), "privacy_policies は PRIVACY.md の https の URL");
   const launcher = entries.get("server/index.cjs").toString("utf8");
   assert(launcher.includes("main().catch") && !launcher.includes("require.main"), "起動のファイルは main() を必ず呼ぶ");
   const bundle = entries.get("server/print-craft-mcp.cjs").toString("utf8");

@@ -13,7 +13,10 @@
     "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.ui.json",
     "test": "node build-mcp.mjs && node --test \"test/**/*.test.mjs\"",
     "build:mcpb": "node build-mcp.mjs && node build-mcpb.mjs",
-    "verify:mcpb": "node build-mcp.mjs && node build-mcpb.mjs && node scripts/mcpb-verify.mjs"
+    "verify:mcpb": "node build-mcp.mjs && node build-mcpb.mjs && node scripts/mcpb-verify.mjs",
+    "notices": "node build-mcp.mjs --write-notices",
+    "build:plugin": "node build-mcp.mjs && node scripts/build-plugin-zip.mjs",
+    "verify:plugin": "node build-mcp.mjs && node scripts/build-plugin-zip.mjs && node scripts/plugin-zip-verify.mjs"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "2.0.0",

@@ -6,15 +6,17 @@
 //   - CJS に import.meta.url は無いので、本体のファイルの URL に置き換える（中核の paths.ts が自分の場所から vendor/ を探す）
 //   - 互換表（compat.json。7 章）を埋め込み、ビルドの組み合わせ（版・中核の版・資料の元）が表と合うかを、束ねたもので確かめる（合わなければ止める）
 //   - preview の MCP App の殻の script（src/ui/。ブラウザー。実装案 16 章）を 1 つの IIFE に束ね、本体に文字列で埋め込む（外の script を読まない）
-// 使い方: node build-mcp.mjs [--out <フォルダー>] [--compat <compat.json>] [--no-compat-check]
+//   - 束ねた依存の著作権表示（THIRD_PARTY_NOTICES.md。リリース手順 0-3）を dist/ に作り、リポジトリのものと同じかを確かめる（違えば止める。--write-notices で書き直す）
+// 使い方: node build-mcp.mjs [--out <フォルダー>] [--compat <compat.json>] [--no-compat-check] [--write-notices]
 //   （--out / --compat / --no-compat-check は試験用: 合わない互換表のビルドを作って、実行のときの incompatible を試す）
 import { build } from "esbuild";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DOC_SECTIONS } from "./scripts/docs-sections.mjs";
+import { bundledPackages, eol, NOTICES_FILE, renderNotices, vendorMoment } from "./scripts/third-party-notices.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const argOf = (name) => {
@@ -107,6 +109,19 @@ const bundle = readFileSync(outfile, "utf8");
 for (const re of [/require\(["']@modelcontextprotocol\//, /require\(["']zod(?:\/[^"']*)?["']\)/, /require\(["']happy-dom/, /require\(["']@rex0220\//]) {
   if (re.test(bundle)) throw new Error(`束ねていない依存が残っている: ${re}`);
 }
+
+// 束ねた依存の著作権表示: 本体とプレビューの表示に入ったパッケージと、vendor/ の moment
+const notices = renderNotices(
+  bundledPackages(root, [
+    { label: "本体", metafile: result.metafile },
+    { label: "プレビューの表示", metafile: ui.metafile }
+  ]),
+  vendorMoment(path.join(toolsDir, "vendor", "moment.json"))
+);
+writeFileSync(path.join(dist, NOTICES_FILE), notices);
+const noticesPath = path.join(root, NOTICES_FILE);
+if (process.argv.includes("--write-notices")) writeFileSync(noticesPath, notices);
+else if (!existsSync(noticesPath) || eol(readFileSync(noticesPath, "utf8")) !== notices) throw new Error(`${NOTICES_FILE} が束ねた依存と合わない（npm run notices で作り直し、差分を確かめてコミットする）`);
 
 writeFileSync(
   path.join(dist, "server", "index.cjs"),
