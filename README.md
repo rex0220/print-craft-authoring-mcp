@@ -74,6 +74,8 @@ kSQL との違い（print-craft の方が厳しい。同じファイルを共有
 
 ## 作り方と試験
 
+リリース（`.mcpb`、Claude Code のプラグイン）の手順は [docs/リリース手順.md](docs/リリース手順.md)。
+
 隣に `print-craft`（印刷屋の zip `dist/print-craft-plugin7.zip`。試験だけ）があること。
 
 中核は npm の `@rex0220/print-craft-authoring-tools` 2.0.0（lockfile で固定。`compat.json` の `coreVersion` は `>=2.0.0 <3.0.0`、`coreApiVersion` は 2）。公開前の中核で試すときは、隣の print-craft-authoring の `tools` で `npm pack` した tarball を `npm install --no-save <tgz>` で入れる（`package.json` と lockfile は変えない）。
