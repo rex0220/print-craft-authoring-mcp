@@ -190,6 +190,8 @@ test("BLOCKER 2 / MINOR 2: 式の誤りは場所だけ（文は返さない）�
   assert.equal(safeRenderError("HTML 設定 4 行目の計算式: S-0000003 は数値でない"), "HTML 設定 4 行目の計算式の評価に失敗（誤りの文は値を含みうるので返さない）");
   assert.equal(safeRenderError("何か別の文 □□□□株式会社"), "式の評価に失敗（誤りの文は値を含みうるので返さない）");
   assert.match(safeRenderError('ページ要素（class="rex0220-pcraft-page"）が無い。印刷屋は 0 ページの PDF を作る'), /ページ要素/);
+  // 中核の preview の掃除の確かめが通らず帳票を出さなかった（tools 2.0.1）: 式の誤りと言い換えず、決まった文
+  assert.equal(safeRenderError("帳票を表示しない: 掃除した帳票の HTML をブラウザーが読むと、掃除の結果と違う形になる（タグでない「<」がある（注釈・CDATA・処理命令など））。…"), "帳票を表示しない（掃除した帳票の HTML をブラウザーが読むと形が変わる。レコードの値や HTML 設定に、注釈・CDATA・SVG などの書き方が無いか確かめる）");
   const { capFindings, MAX_FINDINGS } = await import("../src/result.ts");
   const many = Array.from({ length: 150 }, (_, i) => ({ level: "warning", rule: "x", message: String(i) }));
   const capped = capFindings(many);

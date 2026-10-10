@@ -23,6 +23,9 @@ import { PREVIEW_TOOL_META, previewMeta } from "./preview-app.ts";
 /** ボタンごとの式のエラーの件数の上限（AI に返す量） */
 const MAX_ERRORS_PER_BUTTON = 20;
 
+/** 中核が帳票を出さなかったときの文（tools 2.0.1 の preview の掃除の確かめ） */
+const WITHHELD = "帳票を表示しない（掃除した帳票の HTML をブラウザーが読むと形が変わる。レコードの値や HTML 設定に、注釈・CDATA・SVG などの書き方が無いか確かめる）";
+
 /**
  * 式の誤りの文は値を含みうる（例: 日付として読めない値）。場所（HTML 設定の何行目、${…} の評価か計算式か）だけにする。
  * 誤りの中身は pcraft_normalize（レコードを使わない検査）か、利用者が out/ の HTML で見る
@@ -31,6 +34,8 @@ export function safeRenderError(e: string): string {
   const m = /^HTML 設定 (\d+) 行目( \$\{|の計算式: )/.exec(e);
   if (m) return `HTML 設定 ${m[1]} 行目の${m[2].startsWith(" ${") ? " ${…} の評価" : "計算式の評価"}に失敗（誤りの文は値を含みうるので返さない）`;
   if (e.startsWith("ページ要素（class=\"rex0220-pcraft-page\"）が無い")) return e;
+  // 中核の preview の掃除の確かめ（tools 2.0.1）が通らず、帳票を出さなかった（理由は中核の決まった文だが、ここでも決まった文にする）
+  if (e.startsWith("帳票を表示しない: ")) return WITHHELD;
   return "式の評価に失敗（誤りの文は値を含みうるので返さない）";
 }
 
