@@ -129,6 +129,8 @@ mkdir -p ~/pcraft-b1-ws && cd ~/pcraft-b1-ws
 
 リリースの候補 0.1.5（2026-10-10 Mac。プラグインの zip を、ターミナルの `claude --plugin-dir <zip>` で。VS Code の会話の欄では `/plugin` も `--plugin-dir` も使えない）: 1 は `pcraft_status` と `pcraft_workspace_status` が `ready: true`（0.1.5、中核 2.0.2、zip 版 7、profile 4 つ）、8 は zip の中のフックが Write を止めた（回り道なし）。保存から preview までは、展開した zip で保存まで通す自動の検査（`npm run verify:plugin`）に任せた。
 
+公開した 0.1.5 を marketplace から（2026-10-10 Mac、ターミナルの Claude Code 2.1.296）: `/plugin` の画面から user scope で入れた（入れる前の画面は「Component summary not available for remote plugin」）→ `/plugin configure print-craft@rex0220-print-craft` で zip と接続のファイル（作業フォルダーは空のまま）→ 起動し直して「印刷屋の準備を確かめて」→ 作業フォルダーの登録の確認 → `/mcp` で再接続 → `pcraft_status` と `pcraft_workspace_status` が 0.1.5（中核 2.0.2）・`ready: true`。
+
 ### Desktop（`.mcpb`）
 
 `npm run build:mcpb` → `dist-mcpb/print-craft.mcpb` を入れる → **Desktop を終了して起動し直す** → 新しいチャット。
