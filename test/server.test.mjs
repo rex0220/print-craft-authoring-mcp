@@ -238,9 +238,18 @@ test("秘密の値（接続のファイルのトークン、環境変数の API 
     await s.call("pcraft_save_settings", saveInput(root, "../b.json"));
     assert.ok(!s.output().includes(SECRET));
     assert.deepEqual(leakedTokens(s.output()), []);
+    assert.match(s.stderr(), /kintoneConfig=設定済み（ksql\.config\.json）/, "起動の行に接続のファイルの名前（手での確認 7）");
+    assert.ok(!s.stderr().includes(conn.dir), "接続のファイルのパスは出さない");
   } finally {
     await s.close();
     conn.cleanup();
+  }
+  const s2 = await connectClaudeCode([root]);
+  try {
+    await s2.call("pcraft_status", {});
+    assert.match(s2.stderr(), /kintoneConfig=未設定/);
+  } finally {
+    await s2.close();
     rmSync(root, { recursive: true, force: true });
   }
 });

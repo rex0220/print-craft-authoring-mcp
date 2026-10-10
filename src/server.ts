@@ -4,6 +4,7 @@
  *   - 処理はサーバーの中で共通の中核（@rex0220/print-craft-authoring-tools/core）を呼ぶ（別のプロセスを起動しない）
  *   - 標準出力は JSON-RPC だけ（console の出力は標準エラーへ回し、印刷屋のエンジンを動かしている間は捨てる。console-gate.ts）。秘密の値とレコードの値は応答・標準エラーに出さない
  */
+import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio, StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { WorkspaceBinding, isUnset, parseArgs } from "./binding.ts";
@@ -77,6 +78,8 @@ export async function main(argv: readonly string[] = process.argv.slice(2), env:
   setScrubRoots(desktopRoot ? [desktopRoot] : binding.registered.roots);
   const ctx = createServerContext(args.surface, binding, env, log);
   const ws = args.surface === "desktop" ? (binding.desktopWorkspace().root ?? `未設定（${binding.desktopWorkspace().problem}）`) : `登録 ${binding.registered.roots.length} 件`;
-  log(`${versionLine()} node=${process.version} surface=${args.surface} workspace=${ws} pluginZip=${isUnset(env.PCRAFT_PLUGIN_ZIP) ? "未設定" : "設定済み"}`);
+  // kintone の接続のファイルはファイルの名前だけ（パスと中身は出さない。2026-10-10 の手での確認 7）
+  const conn = ctx.connectionFile ? `設定済み（${path.basename(ctx.connectionFile)}）` : "未設定";
+  log(`${versionLine()} node=${process.version} surface=${args.surface} workspace=${ws} pluginZip=${isUnset(env.PCRAFT_PLUGIN_ZIP) ? "未設定" : "設定済み"} kintoneConfig=${conn}`);
   serveStdio(() => createServer(ctx), { transport: new StdioServerTransport(undefined, undefined, { maxBufferSize: STDIO_MAX_BUFFER_BYTES }) });
 }

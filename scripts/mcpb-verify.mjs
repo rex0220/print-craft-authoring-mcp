@@ -129,6 +129,7 @@ async function main() {
   assert(!seen.join("\n").includes(TEST_TOKEN), "応答にトークンが出ない");
   assert(!stderr.includes(TEST_TOKEN), "標準エラーにトークンが出ない");
   assert(stderr.includes("作業フォルダーを作った"), "作ったことは標準エラーに出す（Desktop の main.log）");
+  assert(stderr.includes("kintoneConfig=設定済み（ksql.config.json）") && !stderr.includes(connFile), "起動の行に接続のファイルの名前だけ（パスは出さない）");
   console.log(`[mcpb-verify] ok（${path.basename(mcpbPath)} ${manifest.version}、ツール ${manifest.tools.length}、node ${process.version} で起動。Desktop の Node の版は手で確かめる）`);
 }
 
