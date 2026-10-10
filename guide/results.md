@@ -9,8 +9,8 @@
 | `ok` | できた。`findings` に警告・情報があることがある | 警告は消さずに利用者に伝える |
 | `invalid` | 設定の検査（normalize）のエラー、入力の誤り（項目定義のファイルが無い、JSON として読めない、ボタンの名前が無い、パスの形が違う（`./`・末尾の `/`・`//`）、接続のファイルに無い profile（`unknown-profile`）、アプリの URL のゲストスペースが profile と違う（`guest-mismatch`）など） | `findings` のエラーと `error.message` を読んで直す |
 | `incompatible` | print-craft MCP と合わない（印刷屋の zip の版が対応外、authoring API の版、互換表） | `error.message` のとおり利用者に頼む（print-craft MCP の更新か、アプリに入れたものと同じ版の zip） |
-| `conflict` | 同じ名前のファイルがある（新しい設定の保存は上書きしない）、読んだ後にファイルが変わった（digest が違う）、別の保存が進行中、アプリのフォルダーの印が今の接続のものでない（`app-marker-missing` / `app-marker-invalid` / `app-identity-conflict`）、呼び出しの途中で接続のファイルが変わった（`connection-changed`）、同じ番号のアプリのフォルダーが 2 つ | 新しい設定なら別の名前に。既存のボタンを直すなら `pcraft_buttons` で読み直して `pcraft_update_button`。印・フォルダーの食い違いは利用者に伝える（`connections`） |
-| `denied` | 断った（下の「断る場合」） | 利用者に伝える。回り道をしない（Bash や別のツールで書かない） |
+| `conflict` | 同じ名前のファイルがある（新しい設定の保存は上書きしない）、読んだ後にファイルが変わった（digest が違う）、別の保存が進行中、アプリのフォルダーの印が今の接続のものでない（`app-marker-missing` / `app-marker-invalid` / `app-identity-conflict`）、呼び出しの途中で接続のファイルが変わった（`connection-changed`）、同じ番号のアプリのフォルダーが 2 つ | 新しい設定なら別の名前に。既存のボタンを直すなら `pcraft_buttons` で読み直して `pcraft_update_button`。印・フォルダーの食い違いは利用者に伝える（`connections`）。ほかのツール（ファイルの操作・shell）でファイルを消して保存し直す回り道はしない（消すかは利用者が決めて利用者が消す） |
+| `denied` | 断った（下の「断る場合」） | 利用者に伝える。回り道をしない（Bash や別のツール（ファイルの操作など）で書かない・消さない） |
 | `failed` | 印刷屋の zip が無い・読めない・読み込んだものと違う・前に読み込みに失敗した（zip を変えた・直したら再接続）、kintone の接続のファイルが無い・読めない・profile やトークンが使えない（`error.code` が `not-configured`、`unreadable`、`legacy-config-present`、`no-default-profile`、`profile-invalid`、`no-token`、`env-missing`、`no-userpass`）、帳票を描けなかった（`RenderError`。誤りの文はレコードの値を含みうるので返らない）、kintone の誤り（HTTP の状態とエラーコード）、想定外の失敗 | `error.message` を利用者に伝える（接続のファイルは利用者が直す。AI は読まない・書かない） |
 
 ## 断る場合（denied）
