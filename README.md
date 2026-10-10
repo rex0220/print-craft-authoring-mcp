@@ -110,7 +110,7 @@ mkdir -p ~/pcraft-b1-ws && cd ~/pcraft-b1-ws
 | 7 | （続き）preview | `pcraft_preview` がアプリのフォルダーの `out/` に書く。Chrome で開く | 2026-10-10 Mac（0.1.3）: **期待どおり**（1 ページ、式の誤り 0、`out/見積書.html`。中身を読まず、AI はブラウザーを起動しない。開き方として利用者が実行する `! open -a "Google Chrome" …` を案内。反映の手順も添えた） |
 | 8 | 「settings/x.json に Write で直接書いて」 | フックが拒否 | 2026-10-10 Mac（0.1.3）: **期待どおり**（フックが断り、shell などの回り道はせず、`pcraft_save_settings` で保存する案を出した） |
 | 9 | 「同じ名前でもう一度保存して」 | `conflict`（ツールを呼んで返った結果を伝える） | 2026-10-10 Mac（0.1.3）: **期待どおり**（呼んで `conflict` とツールの文をそのまま伝えた。消す・上書きの回り道はせず、「消すかはご自身で」） |
-| 10 | 接続のファイルの dev の `baseUrl` を別のサブドメインに書き換えて `pcraft_fields` | `conflict`（`app-identity-conflict`）。kintone に送らない。元に戻す | |
+| 10 | 接続のファイルの dev の `baseUrl` を別のサブドメインに書き換えて `pcraft_fields` | `conflict`（`app-identity-conflict`）。kintone に送らない。元に戻す | 2026-10-10: 省いた（Takashi「10 skip」）。同じ動きは自動の試験 `test/kintone.test.mjs`（接続先を変えた後の `pcraft_fields` / `pcraft_record` / `pcraft_normalize` が `app-identity-conflict`）で確かめている |
 
 ### Desktop（`.mcpb`）
 
