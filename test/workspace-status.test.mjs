@@ -19,7 +19,8 @@ test("接続のファイルが無い: mode は not-configured、next に設定�
     assert.deepEqual(r.result.connection, { configured: false, ready: false, problem: { code: "not-configured", message: "kintone の接続のファイルが設定されていない" } });
     assert.match(r.result.next.join("\n"), /\/config で print-craft の「kintone の接続のファイル」/);
     assert.deepEqual([r.result.pluginZip.readable, r.result.pluginZip.compatible], [true, true]);
-    assert.deepEqual(r.result.environmentsJson, { exists: false });
+    assert.ok(!("legacyEnvironmentsJson" in r.result) && !("environmentsJson" in r.result), "無いときは environments.json のことを返さない（AI が作るものと読み違えた。手での確認 1）");
+    assert.ok(!JSON.stringify(r).includes("environments.json"));
     assert.equal(r.result.ready, false);
     assert.ok(!JSON.stringify(r).includes(root), "絶対パスを返さない");
     assert.deepEqual(readdirSync(root), ["fields"], "診断は何も作らない");
@@ -112,7 +113,8 @@ test("読めない接続のファイル・作業フォルダーの中の接続�
     s = await connectClaudeCode([root], { PCRAFT_PLUGIN_ZIP: ZIP });
     try {
       const r = sc(await s.call("pcraft_workspace_status", { workspaceId: root }));
-      assert.deepEqual([r.result.mode, r.result.connection.problem.code, r.result.environmentsJson.exists], ["legacy-blocked", "legacy-config-present", true]);
+      assert.deepEqual([r.result.mode, r.result.connection.problem.code, r.result.legacyEnvironmentsJson.exists], ["legacy-blocked", "legacy-config-present", true]);
+      assert.match(r.result.legacyEnvironmentsJson.note, /tools 2\.0\.0 から使わない.*作らない/);
       assert.match(r.result.next.join("\n"), /environments\.json は tools 2\.0\.0 から使わない。kintone の接続のファイル/);
     } finally {
       await s.close();

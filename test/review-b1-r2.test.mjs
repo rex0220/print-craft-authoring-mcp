@@ -118,7 +118,7 @@ test("BLOCKER 2（15.3）: kintone の接続のファイルは作業フォルダ
     const s = await connectClaudeCode([root], { PCRAFT_PLUGIN_ZIP: ZIP });
     try {
       const st = sc(await s.call("pcraft_workspace_status", { workspaceId: root }));
-      assert.deepEqual([st.result.mode, st.result.environmentsJson.exists], ["legacy-blocked", true]);
+      assert.deepEqual([st.result.mode, st.result.legacyEnvironmentsJson.exists], ["legacy-blocked", true]);
       assert.equal(sc(await s.call("pcraft_save_settings", saveInput(root, "settings/a.json"))).status, "ok", "settings/ の作業は動く");
       assert.ok(!/外の秘密|secret\.cybozu/.test(s.output()), "外のファイルの中身を返さない");
     } finally {

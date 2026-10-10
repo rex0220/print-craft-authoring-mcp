@@ -105,7 +105,9 @@ export function registerWorkspaceStatus(server: McpServer, ctx: ServerContext): 
           mode: mode?.kind ?? "error",
           connection,
           ...(folders ? { appFolders: folders } : {}),
-          environmentsJson: { exists: legacy },
+          // environments.json は tools 1.x の形。残っているときだけ「使わない」と添えて返す（無いときに exists: false を返すと、AI が「作る必要がある」と読み違えた。
+          // 2026-10-10 の手での確認 1。5.2「AI が読み違えない形にする」）
+          ...(legacy ? { legacyEnvironmentsJson: { exists: true, note: `${LEGACY_WORKSPACE_FILE} は tools 1.x の環境の定義で、tools 2.0.0 から使わない（kintone の接続のファイルを使う）。作らない。残っていれば利用者が消してよい` } } : {}),
           pluginZip: zip.report
         });
       } catch (e) {
