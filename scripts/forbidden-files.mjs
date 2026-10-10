@@ -1,7 +1,8 @@
 // 入れてはいけないもの（リリース手順 0-7、実装案 8.2）: 認証情報、レコードの値、実案件の設定、承認と、本物の kintone の環境のホスト名。
 //   リポジトリ（試験 test/forbidden-files.test.mjs）、.mcpb（mcpb-verify）、プラグインの zip（plugin-zip-verify）で同じ決まりを使う
 // 使い方: node scripts/forbidden-files.mjs [--history]
-//   --history は git の履歴のすべてのコミットも見る（リポジトリを公開する前に 1 回。履歴に残ったものは公開すると誰でも読める）
+//   --history は git の履歴のすべてのコミットも見る（リポジトリを公開する前に 1 回。履歴に残ったものは公開すると誰でも読める）。
+//   見るのは手元のブランチ・タグとリモートの追跡ブランチから辿れるコミット（push されるもの）。filter-branch の控え（refs/original）は見ない
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -66,11 +67,11 @@ export function repoProblems(root) {
   return problemsOf(files.filter((f) => existsSync(path.join(root, f))).map((f) => [f, () => readFileSync(path.join(root, f))]));
 }
 
-/** 履歴のすべてのコミットのパスとホスト名（公開の前に 1 回）。同じ問題はまとめて、含むコミットの数と最初のコミットを添える */
+/** 履歴のコミット（ブランチ・タグ・リモートの追跡ブランチから辿れるもの）のパスとホスト名（公開の前に 1 回）。同じ問題はまとめて、含むコミットの数と最初のコミットを添える */
 export function historyProblems(root) {
   const seen = new Map();
   const add = (problem, c) => seen.set(problem, [...(seen.get(problem) ?? []), c.slice(0, 7)]);
-  for (const c of git(root, ["rev-list", "--all"]).split("\n").filter(Boolean)) {
+  for (const c of git(root, ["rev-list", "--branches", "--tags", "--remotes"]).split("\n").filter(Boolean)) {
     for (const p of git(root, ["ls-tree", "-r", "-z", "--name-only", c]).split("\0").filter(Boolean)) {
       for (const why of forbiddenReasons(p)) add(`${p}: ${why}`, c);
     }
