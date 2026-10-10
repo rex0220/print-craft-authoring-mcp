@@ -117,7 +117,7 @@ mkdir -p ~/pcraft-b1-ws && cd ~/pcraft-b1-ws
 `npm run build:mcpb` → `dist-mcpb/print-craft.mcpb` を入れる → **Desktop を終了して起動し直す** → 新しいチャット。
 
 最初は、ツールごとに初めて使うときに許可の確認が出る（Claude Desktop の決まり）。確認の画面で「常に許可」を選ぶか、Desktop の設定のツールの権限で、読み取りだけのツール（診断、資料、buttons、normalize、files、diff、`kintone_*`）と書き込むツール（保存、差し替え、preview、fields、record、pull、take、edit）をまとめて決める。print-craft の書き込むツールが書くのは作業フォルダーの中だけ（kintone には読み取りだけ）。
-preview の HTML は、Desktop では利用者が求めればチャットに表示できる（AI が表示するかを聞く。HTML にレコードの値が入るので、求めたときだけ）。
+preview の HTML は、Desktop では AI が聞かずにチャットに表示する（2026-10-10 Takashi「無条件に表示」。HTML に入っているレコードの値は会話に入る）。
 
 | # | すること | 期待 | 結果 |
 | --- | --- | --- | --- |
