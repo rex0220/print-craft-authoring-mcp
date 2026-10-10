@@ -44,7 +44,7 @@ export function safeRenderError(e: string): string {
 const NOTE_CLAUDE_CODE = "out/ のファイルはレコードの値を含む（コミットしない）。利用者に Chrome で開いてもらう（AI はブラウザーを起動しない）";
 const NOTE_DESKTOP =
   "帳票は会話の中のプレビュー（MCP App）に表示される（表示の許可を求められたら、利用者に許可してもらう）。表示されなければ、利用者に out/ の HTML を Chrome で開いてもらう。" +
-  "out/ の HTML を読んだり、ほかのツールで会話に出したりしない（レコードの値が会話に入る）。印刷屋のプレビュー（PDF）とも見比べてもらう（近似。画像はダミー）。out/ のファイルはレコードの値を含む（コミットしない）";
+  "out/ の HTML を読んだり、ほかのツールで会話に出したりしない（レコードの値が会話に入る）。印刷屋のプレビュー（PDF）とも見比べてもらう（近似。画像はダミー、Web フォントは読まない）。out/ のファイルはレコードの値を含む（コミットしない）";
 
 const RENDER_FAILED = "帳票を描けなかった（誤りの文はレコードの値を含みうるので返さない）。pcraft_normalize で設定を確かめ、レコードのファイルを pcraft_record で取り直す。直らなければ利用者に印刷屋のプレビューで確かめてもらう";
 
@@ -63,7 +63,7 @@ export function registerPreview(server: McpServer, ctx: ServerContext): void {
       title: "印刷屋の帳票を試し出力",
       description:
         "印刷屋プラグイン（rex0220 Print craft）の設定 JSON とレコード 1 件から帳票の HTML を作り、作業フォルダーの out/ に書く。出したファイル・ページ数・式のエラーを返す（HTML は返さない）。" +
-        "利用者に Chrome で開いてもらい、印刷屋のプレビューと比べてもらう（近似。画像はダミー）。結果を推し量らず、このツールで確かめる",
+        "利用者に Chrome で開いてもらい、印刷屋のプレビューと比べてもらう（近似。画像はダミー、Web フォントは読まない）。結果を推し量らず、このツールで確かめる",
       inputSchema: z
         .object({
           workspaceId: workspaceIdSchema(ctx.surface),

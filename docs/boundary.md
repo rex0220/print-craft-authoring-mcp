@@ -53,7 +53,7 @@
 | ② print-craft MCP → Claude（モデル。会話は Anthropic に送られる） | 項目定義の要約（ラベル・フィールドコード・型・選択肢）、レコードの**形の要約**、アプリの情報（ID・名前・コード）、新しく作った設定・ボタンの中身（data: の URL は先頭と長さ）、normalize / preview の結果、版・診断（接続のファイルの名前、profile の名前・ホスト・ゲストスペース・認証の種類・トークンのあるアプリの番号と使えるか）、資料（`pcraft_docs`） | **認証情報**、環境変数の名前、接続のファイルのパス、**レコードの値**（Desktop。preview の帳票の文書は結果の `_meta` で会話の中の MCP App にだけ渡す。実装案 16 章）、作成者・更新者・選択肢のユーザーのコード、kintone のサーバーの message、作業フォルダーの外のファイル、印刷屋の zip の中身 |
 | ③ print-craft MCP ↔ 作業フォルダー | 項目定義（`fields.json`）、レコードの値（`records/`。preview の入力）、設定、preview の HTML（`out/`。レコードの値を含む）、アプリのフォルダーの印（profile・接続先・ゲストスペース・アプリ ID。秘密でない） | 秘密の値（作業フォルダーに書かない） |
 | ④ print-craft MCP → kintone | GET の要求（許可した API だけ）、認証の見出し（対象のアプリの `X-Cybozu-API-Token` か `X-Cybozu-Authorization`） | 書き込み（GET だけ）、ほかのアプリのトークン |
-| print-craft MCP → その他 | 無し（rex0220 や第三者には送らない。preview の HTML が承認済みの Web フォントを読むのは、利用者がブラウザーで開いたとき） | — |
+| print-craft MCP → その他 | 無し（rex0220 や第三者には送らない。preview の HTML も外部を読まない。Web フォントは中核 tools 2.0.1 から preview では読まない） | — |
 
 ## 4. Claude Code（プラグイン）の場合の違い
 

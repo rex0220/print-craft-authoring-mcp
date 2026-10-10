@@ -84,7 +84,7 @@ export function renderPreview(root: HTMLElement, payload: PreviewPayload | null)
     children.push(section);
     frames.push(box);
   }
-  root.replaceChildren(el(doc, "p", "note", "これは近似のプレビューです（添付ファイルの画像と QR はダミー）。PDF の見た目は印刷屋プラグインで確かめてください。"), ...children);
+  root.replaceChildren(el(doc, "p", "note", "これは近似のプレビューです（添付ファイルの画像と QR はダミー、Web フォントは読まない）。PDF の見た目は印刷屋プラグインで確かめてください。"), ...children);
   return frames;
 }
 

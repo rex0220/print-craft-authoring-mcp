@@ -10,12 +10,12 @@ import { MCP_APP_MIME_TYPE, PREVIEW_MAX_BYTES, PREVIEW_META_KEY, PREVIEW_UI_URI,
 declare const __PCRAFT_PREVIEW_APP_JS__: string;
 
 /**
- * 資源の UI の決まり: CSP は承認済みの Web フォント（Google Fonts）の配信元だけ。通信（connect）と URL の入れ子の iframe は無し
- * （帳票は srcdoc の iframe。読み込みをしない）。枠と背景はホストに付けてもらう
+ * 資源の UI の決まり: CSP は外部を許さない（読み込み・通信（connect）・URL の入れ子の iframe は無し。帳票は srcdoc の iframe で読み込みをしない。
+ * Web フォントは preview では読まない＝中核 tools 2.0.1。2026-10-10 Takashi「Web フォントの読み込みは、印刷屋プラグインで処理」）。枠と背景はホストに付けてもらう
  */
 const UI_META = {
   ui: {
-    csp: { resourceDomains: ["https://fonts.googleapis.com", "https://fonts.gstatic.com"], connectDomains: [], frameDomains: [] },
+    csp: { resourceDomains: [], connectDomains: [], frameDomains: [] },
     prefersBorder: true
   }
 };

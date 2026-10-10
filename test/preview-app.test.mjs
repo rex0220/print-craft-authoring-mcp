@@ -31,7 +31,7 @@ function prepared() {
   return { root, conn, cleanup: () => (conn.cleanup(), rmSync(root, { recursive: true, force: true })) };
 }
 
-test("Desktop: pcraft_preview は _meta.ui.resourceUri で表示の殻を指す。資源は text/html;profile=mcp-app、インラインの script だけ、CSP は Google Fonts だけ", { skip }, async () => {
+test("Desktop: pcraft_preview は _meta.ui.resourceUri で表示の殻を指す。資源は text/html;profile=mcp-app、インラインの script だけ、CSP は外部を許さない（Web フォントは読まない）", { skip }, async () => {
   const w = prepared();
   const s = await connectDesktop(w.root, connEnv(w.conn.file));
   try {
@@ -51,7 +51,7 @@ test("Desktop: pcraft_preview は _meta.ui.resourceUri で表示の殻を指す�
     assert.doesNotMatch(c.text, /<script[^>]+src=/i, "外の script を読まない");
     assert.match(c.text, /ui\/initialize/, "握手のコード（ext-apps の App）");
     assert.equal((c.text.match(/<\/script>/gi) ?? []).length, 1, "script の中に </script> が無い");
-    assert.deepEqual(c._meta?.ui?.csp, { resourceDomains: ["https://fonts.googleapis.com", "https://fonts.gstatic.com"], connectDomains: [], frameDomains: [] });
+    assert.deepEqual(c._meta?.ui?.csp, { resourceDomains: [], connectDomains: [], frameDomains: [] });
   } finally {
     await s.close();
     w.cleanup();

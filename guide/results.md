@@ -52,6 +52,7 @@
 | `formula.rawHtml` | 生の HTML を入れる関数（`TABLE_HTML`、`FVAL` など）。想定どおりなら伝えるだけ |
 | `formula.attr` / `formula.html` | 要素名・属性にレコードの値や式を入れている、計算式の文字列の HTML / CSS の危険な書き方 |
 | `preview.record` | 設定が使う項目が preview のレコードに無い（帳票では空になる）。`pcraft_record` に `fieldsFrom`（この設定）を付けて取り直す |
+| `preview.style` | HTML の行の `<style>` / style 属性に外へ読み込む書き方（`url()` など）があり、preview では外した（印刷屋の PDF では効く。帳票の CSS は行の `css` に書く） |
 | `external.url` / `external.blocked` | `"allow"` の設定の未承認の外部 URL / 計算式の文字列の外部 URL（帳票に入れば除かれる） |
 
 情報（保存値の大きさ、`envelope.version.upgrade` など）は要るときだけ伝える。
