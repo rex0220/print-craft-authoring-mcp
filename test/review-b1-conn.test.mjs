@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as core from "@rex0220/print-craft-authoring-tools/core";
-import { CONN, FIELDS_TEXT, SETTINGS_TEXT, SKIP as skip, ZIP, connEnv, connectClaudeCode, leakedTokens, makeConn, makeWorkspace, sc, settings } from "./helpers.mjs";
+import { CONN, FIELDS_TEXT, SETTINGS_TEXT, SKIP as skip, ZIP, connEnv, connectClaudeCode, connectDesktop, leakedTokens, makeConn, makeWorkspace, sc, settings } from "./helpers.mjs";
 
 const RECORD_TEXT = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "record-3740-3.json"), "utf8");
 const APP_DIR = "kintone/dev/3740-見積書(印刷屋)";
@@ -166,5 +166,29 @@ test("15.6: 呼び出しの途中で選んだ profile の接続が変われば c
     conn.cleanup();
     rmSync(tmp, { recursive: true, force: true });
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("手での確認 5: pcraft_preview の note は、Desktop ではチャットに表示するかを聞く（求められたときだけ。ファイルをそのまま）、Claude Code では Chrome で開いてもらう", { skip }, async () => {
+  for (const [surface, re] of [["desktop", /チャットに表示するかを聞く.*求めたときだけ.*iframe から取り出さない/], ["claude-code", /Chrome で開いてもらう（AI はブラウザーを起動しない）$/]]) {
+    const root = makeWorkspace();
+    const conn = makeConn();
+    const set = core.loadConnections(conn.file, { workspaceRoots: [root], env: {} });
+    const dir = path.join(root, "kintone", "dev", "3740-見積書");
+    core.ensureAppFolder(dir, core.pickProfile(set, "dev"), 3740);
+    writeFileSync(path.join(dir, "fields.json"), FIELDS_TEXT);
+    mkdirSync(path.join(dir, "records"));
+    writeFileSync(path.join(dir, "records", "3.json"), RECORD_TEXT);
+    writeFileSync(path.join(dir, "見積書.json"), settings());
+    const s = surface === "desktop" ? await connectDesktop(root, connEnv(conn.file)) : await connectClaudeCode([root], connEnv(conn.file));
+    try {
+      const r = sc(await s.call("pcraft_preview", { ...(surface === "desktop" ? {} : { workspaceId: root }), path: "kintone/dev/3740-見積書/見積書.json", record: "3" }));
+      assert.equal(r.status, "ok", JSON.stringify(r));
+      assert.match(r.result.note, re, surface);
+    } finally {
+      await s.close();
+      conn.cleanup();
+      rmSync(root, { recursive: true, force: true });
+    }
   }
 });

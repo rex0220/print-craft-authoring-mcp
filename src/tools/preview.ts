@@ -5,6 +5,8 @@
  *   - 出す先: アプリのフォルダー（kintone/<profile>/<番号>-…/）の設定なら、そのフォルダーの out/。それ以外は作業フォルダーの out/
  *   - レコード: records/ のファイル。アプリのフォルダーの設定なら番号だけ（3 → 同じフォルダーの records/3.json）
  *   - 利用者に Chrome で開いてもらう（AI はブラウザーを起動しない）
+ *   - Claude Desktop では、利用者に「チャットに表示するか」を聞き、求められたときだけ表示してよい（HTML にレコードの値が入るので、聞かずに表示しない。
+ *     ファイルをそのまま使い、中の帳票の文書を iframe から取り出さない。2026-10-10 の手での確認で、指示すればチャットに表示できた）
  */
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -32,6 +34,12 @@ export function safeRenderError(e: string): string {
 }
 
 /** 描画の想定外の誤り（例外の文はレコードの値を含みうるので、返さず、記録にも残さない） */
+/** 出したファイルの扱い（出し分けごと） */
+const NOTE_CLAUDE_CODE = "out/ のファイルはレコードの値を含む（コミットしない）。利用者に Chrome で開いてもらう（AI はブラウザーを起動しない）";
+const NOTE_DESKTOP =
+  "out/ のファイルはレコードの値を含む（コミットしない）。利用者に Chrome で開いてもらうか、チャットに表示するかを聞く。" +
+  "チャットに表示するのは利用者が求めたときだけ（レコードの値が会話に入る）。表示するときは HTML のファイルをそのまま使い、中の帳票の文書を iframe から取り出さない（sandbox と CSP が外れる）";
+
 const RENDER_FAILED = "帳票を描けなかった（誤りの文はレコードの値を含みうるので返さない）。pcraft_normalize で設定を確かめ、レコードのファイルを pcraft_record で取り直す。直らなければ利用者に印刷屋のプレビューで確かめてもらう";
 
 function recordFileFor(root: string, settingsFile: string, record: string, mode: WorkspaceMode): string {
@@ -103,7 +111,7 @@ export function registerPreview(server: McpServer, ctx: ServerContext): void {
               results: written,
               skipped: result.skipped,
               ...originFields(origin),
-              note: "out/ のファイルはレコードの値を含む（コミットしない）。利用者に Chrome で開いてもらう（AI はブラウザーを起動しない）"
+              note: ctx.surface === "desktop" ? NOTE_DESKTOP : NOTE_CLAUDE_CODE
             },
             { findings }
           );

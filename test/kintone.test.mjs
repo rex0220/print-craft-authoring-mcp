@@ -262,6 +262,12 @@ test("Desktop の kintone_get_app: 番号か、profile の接続先とゲスト�
     assert.deepEqual([byId.result.appId, byId.result.name, byId.result.profile], [3740, "見積書(印刷屋)", "dev"]);
     assert.deepEqual(noValues(JSON.stringify(byId)), []);
     assert.equal(sc(await s.call("kintone_get_app", { app: "https://dev-x.cybozu.com/k/3740/?q=1#x" })).status, "ok");
+    // ブラウザーから写した詳細画面・編集画面の URL もアプリの番号だけを使う（手での確認 3）
+    for (const app of ["https://dev-x.cybozu.com/k/3740/show#record=3", "https://dev-x.cybozu.com/k/3740/show#record=3&mode=edit", "https://dev-x.cybozu.com/k/3740/edit"]) {
+      const r = sc(await s.call("kintone_get_app", { app }));
+      assert.deepEqual([r.status, r.result?.appId], ["ok", 3740], app);
+    }
+    assert.equal(sc(await s.call("kintone_get_app", { app: "https://x.cybozu.com/k/guest/7/3740/show#record=1", profile: "guest7" })).result?.guestSpaceId, 7);
     // ゲストスペース: profile の guestSpaceId と URL が同じときだけ（1 つの profile は 1 つのスペース。15.5）
     const guest = sc(await s.call("kintone_get_app", { app: "https://x.cybozu.com/k/guest/7/3740/", profile: "guest7" }));
     assert.deepEqual([guest.status, guest.result?.guestSpaceId, guest.result?.spaceId], ["ok", 7, "11"], JSON.stringify(guest));
@@ -270,7 +276,7 @@ test("Desktop の kintone_get_app: 番号か、profile の接続先とゲスト�
     for (const [app, profile] of [["https://x.cybozu.com/k/3740/", "guest7"], ["https://x.cybozu.com/k/guest/8/3740/", "guest7"], ["https://dev-x.cybozu.com/k/guest/7/3740/", undefined]]) {
       assert.deepEqual(errorOf(await s.call("kintone_get_app", { app, ...(profile ? { profile } : {}) })), [true, false, "invalid", "guest-mismatch"], `${app} ${profile}`);
     }
-    for (const app of ["https://x.cybozu.com/k/3740/", "https://u:p@dev-x.cybozu.com/k/3740/", "http://dev-x.cybozu.com/k/3740/", "https://dev-x.cybozu.com/k/3740/show#record=1", "見積書"]) {
+    for (const app of ["https://x.cybozu.com/k/3740/", "https://u:p@dev-x.cybozu.com/k/3740/", "http://dev-x.cybozu.com/k/3740/", "https://dev-x.cybozu.com/k/3740/print", "https://dev-x.cybozu.com/k/admin/app/flow?app=3740", "見積書"]) {
       assert.deepEqual(errorOf(await s.call("kintone_get_app", { app })), [true, false, "invalid", "InputError"], app);
     }
     assert.deepEqual(leakedTokens(s.output()), []);

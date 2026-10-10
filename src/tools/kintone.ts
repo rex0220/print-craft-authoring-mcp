@@ -64,8 +64,9 @@ export const profileSchema = z
 
 /**
  * Desktop のツールのアプリの指定: 番号か、アプリの URL（https、オリジンが profile の接続先と同じ、/k/<番号>/ か /k/guest/<スペース>/<番号>/。
+ * ブラウザーから写した詳細画面・編集画面（…/<番号>/show#record=3、…/<番号>/edit）も、アプリの番号だけを使う（2026-10-10 の手での確認 3。Takashi「OK」）。
  * URL のゲストスペースは profile の guestSpaceId と同じとき（通常の URL を guest の profile に、guest の URL を通常の profile に渡すと guest-mismatch）。
- * ユーザー名・パスワードの部分があれば断る。query と fragment は見ない（5.4、15.8）
+ * ユーザー名・パスワードの部分があれば断る。query と fragment（レコードの番号など）は見ない（5.4、15.8）
  */
 export function appRefOf(app: number | string, def: ProfileDef): number {
   if (typeof app === "number") return app;
@@ -82,8 +83,8 @@ export function appRefOf(app: number | string, def: ProfileDef): number {
   if (u.username || u.password) throw new InputError("アプリの URL にユーザー名・パスワードの部分は書かない");
   const origin = new URL(def.baseUrl).origin;
   if (u.protocol !== "https:" || u.origin !== origin) throw new InputError(`アプリの URL が profile「${def.profile}」の接続先（${origin}）のものでない（別の接続先の URL から番号だけを使わない）`);
-  const m = u.pathname.match(/^\/k\/(?:guest\/(\d+)\/)?(\d+)\/?$/);
-  if (!m) throw new InputError("アプリの URL は /k/<番号>/ か /k/guest/<スペース>/<番号>/ の形");
+  const m = u.pathname.match(/^\/k\/(?:guest\/(\d+)\/)?(\d+)(?:\/(?:show|edit))?\/?$/);
+  if (!m) throw new InputError("アプリの URL は /k/<番号>/（詳細画面の /k/<番号>/show#record=… も可）か /k/guest/<スペース>/<番号>/ の形");
   const appId = Number(m[2]);
   const guest = m[1] ? Number(m[1]) : null;
   if (!Number.isSafeInteger(appId) || appId <= 0 || (guest !== null && (!Number.isSafeInteger(guest) || guest <= 0))) throw new InputError("アプリの URL の番号が正の整数でない");

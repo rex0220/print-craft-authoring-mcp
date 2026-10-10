@@ -20,7 +20,7 @@ const cut = (v: unknown): string | undefined => (typeof v === "string" ? v.slice
 
 const appRefSchema = z
   .union([z.number().int().positive(), z.string().min(1).max(2048)])
-  .describe("アプリの番号か、アプリの URL（https://<サブドメイン>.cybozu.com/k/<番号>/。ゲストスペースは /k/guest/<スペース>/<番号>/。profile の接続先とゲストスペースが同じもの）");
+  .describe("アプリの番号か、アプリの URL（https://<サブドメイン>.cybozu.com/k/<番号>/。詳細画面の …/k/<番号>/show#record=… も可（アプリの番号だけを使う）。ゲストスペースは /k/guest/<スペース>/<番号>/。profile の接続先とゲストスペースが同じもの）");
 
 export function registerKintoneGet(server: McpServer, ctx: ServerContext): void {
   server.registerTool(

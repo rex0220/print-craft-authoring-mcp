@@ -116,13 +116,16 @@ mkdir -p ~/pcraft-b1-ws && cd ~/pcraft-b1-ws
 
 `npm run build:mcpb` → `dist-mcpb/print-craft.mcpb` を入れる → **Desktop を終了して起動し直す** → 新しいチャット。
 
+最初は、ツールごとに初めて使うときに許可の確認が出る（Claude Desktop の決まり）。確認の画面で「常に許可」を選ぶか、Desktop の設定のツールの権限で、読み取りだけのツール（診断、資料、buttons、normalize、files、diff、`kintone_*`）と書き込むツール（保存、差し替え、preview、fields、record、pull、take、edit）をまとめて決める。print-craft の書き込むツールが書くのは作業フォルダーの中だけ（kintone には読み取りだけ）。
+preview の HTML は、Desktop では利用者が求めればチャットに表示できる（AI が表示するかを聞く。HTML にレコードの値が入るので、求めたときだけ）。
+
 | # | すること | 期待 | 結果 |
 | --- | --- | --- | --- |
-| 1 | 設定項目（入れたときの画面か、設定 → 拡張機能 → 印刷屋 設定オーサリング（Print craft）の設定）: 作業フォルダー（選ぶ画面で）、zip、kintone の接続のファイル（選ぶ画面で） | 設定に秘密の値の項目が無い | |
-| 2 | 「印刷屋で見積書の帳票を作りたい」 | `pcraft_docs` → `pcraft_status`（版 0.1.0、`ready: true`） | |
-| 3 | アプリの番号か URL を伝える | `kintone_get_app` で名前（profile と接続先）、`pcraft_fields` で要約 | |
-| 4 | 代表のレコードを選ぶ | `kintone_list_records`（形だけ、5 件）→ `pcraft_record` | |
-| 5 | 帳票を書いて保存 → preview | `pcraft_save_settings` `ok` → `pcraft_preview` | |
+| 1 | 設定項目（入れたときの画面か、設定 → 拡張機能 → 印刷屋 設定オーサリング（Print craft）の設定）: 作業フォルダー（選ぶ画面で）、zip、kintone の接続のファイル（選ぶ画面で） | 設定に秘密の値の項目が無い | 2026-10-10 Mac（0.1.0）: **期待どおり**。作業フォルダー `~/pcraft-b1-desktop`、接続のファイルは kSQL MCP のものを Takashi がコピー（profile 4 つ、すべてログイン名とパスワード）。古い試作は表示名を「…試作）-old」（0.0.8）にした |
+| 2 | 「印刷屋で見積書の帳票を作りたい」 | `pcraft_docs` → `pcraft_status`（版 0.1.1、`ready: true`） | 2026-10-10 Mac（0.1.0）: **期待どおり**（版 0.1.0、中核 2.0.0、`ready`、zip 版 7、profile 4 つと使えるか。秘密の値・環境変数の名前・パスは出ない）。ただし `pcraft_workspace_status` の `environmentsJson: { exists: false }` を見た AI が「environments.json を作る必要があるかもしれない」と案内した → 無いときは返さないように直した（5efcf2d） |
+| 3 | アプリの番号か URL を伝える | `kintone_get_app` で名前（profile と接続先）、`pcraft_fields` で要約 | 2026-10-10 Mac（0.1.0）: **期待どおり**（アプリ 3740「見積書(印刷屋)」、項目 19、`kintone/dev/3740-見積書(印刷屋)/fields.json`）。詳細画面の URL（`…/k/3740/show#record=3`）は断られ、AI が番号で指定し直した → 詳細画面・編集画面の URL も受け付けるようにした（Takashi「OK」） |
+| 4 | 代表のレコードを選ぶ | `kintone_list_records`（形だけ、5 件）→ `pcraft_record` | 2026-10-10 Mac（0.1.0）: URL のレコード 3 を使ったので `kintone_list_records` は呼ばず、`pcraft_record` で形だけ（値は出ない） |
+| 5 | 帳票を書いて保存 → preview | `pcraft_save_settings` `ok` → `pcraft_preview` | 2026-10-10 Mac（0.1.0）: **期待どおり**（`kintone/dev/3740-見積書(印刷屋)/見積書.json`、fields を渡さず、警告は `formula.rawHtml` だけ。preview は 1 ページ・式の誤り 0、アプリのフォルダーの `out/`）。最初はツールごとに許可の確認が出る（上の説明を足した）。HTML は「…をプレビュー」と頼むとチャットに表示できた → Desktop では表示するかを AI が聞くようにした |
 | 6 | 同じ名前でもう一度保存 | `conflict`（ツールを呼んで返った結果を伝える。推し量らない） | |
 | 7 | `env:` のトークンの profile（シェルの設定だけに変数を書いた）で `pcraft_workspace_status` | `tokenApps` の `ready: false`（Desktop にシェルの環境変数は届かない）。`pcraft_fields` は `env-missing` | |
-| 8 | `main.log` | `[print-craft-mcp] print-craft MCP 0.1.0 …` の行。秘密の値、レコードの値（宛名など）、印刷屋のログ（`file name err`）、moment の警告（`Deprecation warning`）が無い（捨てたときは「console の出力を N 件捨てた」の行だけ） | |
+| 8 | `main.log` | `[print-craft-mcp] print-craft MCP 0.1.1 …` の行。秘密の値、レコードの値（宛名など）、印刷屋のログ（`file name err`）、moment の警告（`Deprecation warning`）が無い（捨てたときは「console の出力を N 件捨てた」の行だけ） | |
