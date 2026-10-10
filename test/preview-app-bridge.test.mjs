@@ -84,7 +84,7 @@ test("握手 → 結果の _meta の帳票を sandbox の iframe に描く、aut
   const h = await connect({ displayMode: "inline", availableDisplayModes: BOTH });
   try {
     assert.equal(h.root.textContent, MESSAGES.waiting, "結果の前は待っている文");
-    assert.deepEqual(h.bridge.getAppCapabilities()?.availableDisplayModes, ["inline", "fullscreen"], "対応する表示の形を握手で宣言する");
+    assert.deepEqual(h.bridge.getAppCapabilities()?.availableDisplayModes, ["inline", "fullscreen", "pip"], "対応する表示の形を握手で宣言する");
     await waitFor(() => h.sizes.length > 0, "大きさの通知");
     assert.deepEqual(h.sizes.at(-1), { width: 1024, height: 40 });
     const before = h.sizes.length;
@@ -93,17 +93,21 @@ test("握手 → 結果の _meta の帳票を sandbox の iframe に描く、aut
     h.resize();
     await waitFor(() => h.sizes.length > before, "帳票を描いた後の大きさの通知");
     assert.deepEqual(h.sizes.at(-1), { width: 1024, height: 1300 }, "帳票の高さを知らせる");
+    assert.ok(h.root.style.maxWidth && h.root.style.maxWidth === h.root.querySelector(".sheet").style.width, "帳票の列の幅（真ん中に置く）は帳票の枠の幅");
     const iframe = h.root.querySelector("iframe");
     assert.equal(iframe.getAttribute("sandbox"), "");
     assert.equal(iframe.getAttribute("srcdoc"), INNER);
     assert.equal(h.root.querySelector("h2").textContent, "見積書");
     const button = h.toolbar.querySelector("button");
     assert.equal(button.textContent, "全画面");
+    assert.equal(win.document.body.dataset.mode, "inline");
     button.click();
     await waitFor(() => button.textContent === "元の大きさ", "全画面になった文");
+    assert.equal(win.document.body.dataset.mode, "fullscreen", "全画面の印（CSS で下に余白）");
     button.click();
     await waitFor(() => button.textContent === "全画面", "元に戻った文");
     assert.deepEqual(h.modes, ["fullscreen", "inline"]);
+    assert.equal(win.document.body.dataset.mode, "inline");
   } finally {
     await h.close();
   }
@@ -122,6 +126,27 @@ test("ホストが初めから全画面なら、ボタンは「元の大きさ�
     h.setMode("inline");
     await waitFor(() => button.textContent === "全画面", "ホストが全画面を閉じた");
     assert.deepEqual(h.modes, ["inline"], "ホストが変えたときは要求を出さない");
+  } finally {
+    await h.close();
+  }
+});
+
+test("小窓（pip）に対応するホストでは「小窓」と「全画面」のボタン。小窓と元の大きさを行き来し、小窓から全画面にもできる", async () => {
+  const h = await connect({ displayMode: "inline", availableDisplayModes: ["inline", "fullscreen", "pip"] });
+  try {
+    const texts = () => [...h.toolbar.querySelectorAll("button")].map((b) => b.textContent);
+    assert.deepEqual(texts(), ["小窓", "全画面"]);
+    const [pip, full] = h.toolbar.querySelectorAll("button");
+    pip.click();
+    await waitFor(() => texts()[0] === "元の大きさ", "小窓になった文");
+    assert.deepEqual(texts(), ["元の大きさ", "全画面"]);
+    assert.equal(win.document.body.dataset.mode, "pip");
+    full.click();
+    await waitFor(() => texts()[1] === "元の大きさ", "小窓から全画面");
+    assert.deepEqual(texts(), ["小窓", "元の大きさ"]);
+    full.click();
+    await waitFor(() => texts()[1] === "全画面", "元の大きさに戻った");
+    assert.deepEqual(h.modes, ["pip", "fullscreen", "inline"]);
   } finally {
     await h.close();
   }

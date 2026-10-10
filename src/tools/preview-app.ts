@@ -27,7 +27,8 @@ const STYLE = `
 body { margin: 0; font-family: system-ui, sans-serif; color: #222; background: #fff; }
 #toolbar { display: flex; justify-content: flex-end; gap: 8px; padding: 4px 4px 0; }
 #toolbar:empty { display: none; }
-#root { padding: 4px; }
+#root { padding: 4px; margin: 0 auto; }
+body[data-mode="fullscreen"] #root { padding-bottom: 160px; }
 .note { margin: 4px 0 8px; font-size: 12px; color: #666; }
 .button + .button { margin-top: 16px; }
 h2.menu { margin: 4px 0; font-size: 16px; }

@@ -88,8 +88,9 @@ export function renderPreview(root: HTMLElement, payload: PreviewPayload | null)
   return frames;
 }
 
-/** 枠の中の帳票を、使える幅に合わせて縮める（大きくはしない） */
-export function fitAll(frames: HTMLElement[], available: number): void {
+/** 枠の中の帳票を、使える幅に合わせて縮める（大きくはしない）。一番広い枠の幅（px）を返す（帳票の列の幅に使う。枠が無ければ 0） */
+export function fitAll(frames: HTMLElement[], available: number): number {
+  let widest = 0;
   for (const box of frames) {
     const width = Number(box.dataset.width) || 1;
     const height = Number(box.dataset.height) || 1;
@@ -101,5 +102,7 @@ export function fitAll(frames: HTMLElement[], available: number): void {
     }
     box.style.width = `${Math.ceil(width * scale)}px`;
     box.style.height = `${Math.ceil(height * scale)}px`;
+    widest = Math.max(widest, Math.ceil(width * scale));
   }
+  return widest;
 }

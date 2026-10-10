@@ -139,7 +139,7 @@ test("表示の殻の描き方（happy-dom）: iframe は sandbox=\"\" と srcdo
   assert.equal(iframe.getAttribute("srcdoc"), "<!doctype html><p>帳票</p>");
   assert.equal(root.querySelector("img"), null, "ボタン名・ファイル名・誤りの文を HTML にしない");
   assert.equal(root.querySelector("h2").textContent, evil);
-  fitAll(frames, 400);
+  assert.equal(fitAll(frames, 400), 400, "一番広い枠の幅を返す");
   assert.equal(iframe.style.transform, "scale(0.5)");
   assert.deepEqual([frames[0].style.width, frames[0].style.height], ["400px", "600px"]);
   fitAll(frames, 2000);
