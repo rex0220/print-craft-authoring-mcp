@@ -1,0 +1,31 @@
+{
+  "name": "rex0220-print-craft",
+  "description": "kintone の印刷屋プラグイン（rex0220 Print craft）の帳票の設定を、Claude Code で作る・直す（print-craft）",
+  "owner": {
+    "name": "rex0220",
+    "url": "https://github.com/rex0220"
+  },
+  "plugins": [
+    {
+      "name": "print-craft",
+      "description": "kintone の印刷屋プラグイン（rex0220 Print craft）の帳票の設定 JSON を、検査（normalize）を通して作業フォルダーに保存・確認する（print-craft MCP と、作業フォルダーの結び付け・設定ファイルへの直接の書き込みを止めるフック）",
+      "author": {
+        "name": "rex0220"
+      },
+      "homepage": "https://github.com/rex0220/print-craft-authoring-mcp",
+      "repository": "https://github.com/rex0220/print-craft-authoring-mcp",
+      "license": "MIT",
+      "keywords": [
+        "kintone",
+        "print-craft",
+        "印刷屋",
+        "mcp"
+      ],
+      "source": {
+        "source": "archive",
+        "url": "https://github.com/rex0220/print-craft-authoring-mcp/releases/download/v0.1.5/print-craft-plugin-0.1.5.zip",
+        "sha256": "6a02fa3ed08432d15be104980da81d8b8226706ae1f548202df29b729ccaee2b"
+      }
+    }
+  ]
+}

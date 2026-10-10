@@ -1,8 +1,14 @@
-# print-craft-authoring-mcp（開発中・未公開）
+# print-craft-authoring-mcp
 
 kintone の印刷屋プラグイン（rex0220 Print craft）の帳票の設定 JSON を、検査（normalize）を通して作業フォルダーに保存・確認する **print-craft MCP**（Claude Code のプラグインと Claude Desktop の `.mcpb`）。中核は npm の [`@rex0220/print-craft-authoring-tools/core`](https://www.npmjs.com/package/@rex0220/print-craft-authoring-tools)。設計は [docs/プラグイン化の実装案.md](docs/プラグイン化の実装案.md)（kintone の接続は 15 章）。
 
-今は段階 B2 の前（公開の前の関門。[docs/リリース手順.md](docs/リリース手順.md) の 0 章）。B1（print-craft MCP の本体）は済み。Claude Code のプラグインの配布は B2、`.mcpb` のリリースは B3。
+最新の版は [リリース](https://github.com/rex0220/print-craft-authoring-mcp/releases/latest)（0.1.5 から公開）。開発の段階は B2（Claude Code のプラグインの配布）で、`.mcpb` の Windows での確かめは B3。
+
+## 入れ方
+
+- **Claude Desktop**: [リリース](https://github.com/rex0220/print-craft-authoring-mcp/releases/latest) から `print-craft-authoring-<版>.mcpb` をダウンロードしてダブルクリック。設定で、作業フォルダー、印刷屋プラグインの zip、kintone の接続のファイルを選ぶ（下の「設定項目」と「kintone の接続のファイル」）
+- **Claude Code**（ターミナルの `claude`。Node.js 20 以降）: `/plugin install print-craft --marketplace rex0220/print-craft-authoring-mcp`（Claude Code 2.1.275 以降。それより前は `/plugin marketplace add rex0220/print-craft-authoring-mcp` → `/plugin install print-craft@rex0220-print-craft`）。そのあと `/config` で、印刷屋プラグインの zip と kintone の接続のファイル
+- 印刷屋プラグインの zip は、アプリに入れたものと同じ版（Ver.6 以降）の、配布元から入手したものを使う。kintone の API トークンは、アプリごとのレコード閲覧だけのものを使う
 
 利用者向け: [PRIVACY.md](PRIVACY.md)（プライバシーポリシー）、[SECURITY.md](SECURITY.md)（脆弱性の報告と、受け入れた危険）、[CHANGELOG.md](CHANGELOG.md)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)（同梱の依存のライセンス）。
 
