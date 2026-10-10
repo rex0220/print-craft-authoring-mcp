@@ -67,6 +67,31 @@ test("MAJOR 4: pcraft_take は印の合わない今あるフォルダーで conf
   }
 });
 
+test("r2 MAJOR: pcraft_take は同じアプリでアプリ名の違うダウンロードを一度に置いても、アプリのフォルダーを 1 つだけ作る（一番新しいダウンロードのアプリ名）", { skip }, async () => {
+  const root = makeWorkspace();
+  const conn = makeConn();
+  const { text } = await snapshotText();
+  const base = JSON.parse(text);
+  const s = await connectClaudeCode([root], connEnv(conn.file));
+  try {
+    mkdirSync(path.join(root, "inbox"));
+    const older = "rex0220-print-craft-app3740-20261001-090000.json";
+    const newer = "rex0220-print-craft-app3740-20261002-090000.json";
+    writeFileSync(path.join(root, "inbox", older), JSON.stringify({ ...base, appName: "旧名" }));
+    writeFileSync(path.join(root, "inbox", newer), JSON.stringify({ ...base, appName: "新名" }));
+    const r = sc(await s.call("pcraft_take", { workspaceId: root }));
+    assert.equal(r.status, "ok", JSON.stringify(r));
+    assert.deepEqual(r.result.skipped, []);
+    assert.deepEqual(readdirSync(path.join(root, "kintone", "dev")).filter((n) => !n.startsWith(".")), ["3740-新名"]);
+    const f = sc(await s.call("pcraft_files", { workspaceId: root, app: 3740 }));
+    assert.deepEqual([f.status, f.result.snapshots], ["ok", [newer, older]], "その後も番号で使える（同じ番号のフォルダーが 2 つで止まらない）");
+  } finally {
+    await s.close();
+    conn.cleanup();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("MAJOR 3: アプリのフォルダーの設定の pcraft_normalize / pcraft_preview は、同じフォルダーの fields.json だけ（別の fields は denied。同じファイルなら渡してよい）", { skip }, async () => {
   const root = makeWorkspace();
   const conn = makeConn();
