@@ -9,6 +9,7 @@ print-craft MCP（Claude Desktop の拡張機能「印刷屋 設定オーサリ�
 - Claude Code のプラグインを、GitHub のリリースの zip として配る（marketplace `rex0220-print-craft`。zip は sha256 で固定）
 - 配布物に、同梱の依存の著作権表示とライセンス（`THIRD_PARTY_NOTICES.md`）を入れる
 - Claude Desktop の拡張機能: プライバシーポリシー（`PRIVACY.md`）と配布元・問い合わせ先を manifest に書く
+- 中核を `@rex0220/print-craft-authoring-tools` 2.0.2 にした（説明の文の直しだけ。動きは 2.0.1 と同じ）
 
 ## 0.1.4（2026-10-10）
 
