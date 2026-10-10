@@ -5,8 +5,8 @@
  *   - 出す先: アプリのフォルダー（kintone/<profile>/<番号>-…/）の設定なら、そのフォルダーの out/。それ以外は作業フォルダーの out/
  *   - レコード: records/ のファイル。アプリのフォルダーの設定なら番号だけ（3 → 同じフォルダーの records/3.json）
  *   - 利用者に Chrome で開いてもらう（AI はブラウザーを起動しない）
- *   - Claude Desktop では、出した HTML のファイルを、聞かずにチャットに表示する（2026-10-10 Takashi「プレビューは、チャットに無条件に表示して」。
- *     HTML のレコードの値が会話に入ることは受け入れた。ファイルをそのまま使い、中の帳票の文書を iframe から取り出さない（sandbox と CSP が外れる））
+ *   - Claude Desktop では、帳票を会話の中のプレビュー（MCP App。tools/preview-app.ts）に表示する（2026-10-10 Takashi「MCP Apps で作る」。実装案 16 章）。
+ *     帳票の文書は結果の _meta に置き、モデルの文脈に入れない。AI は out/ のファイルを読んだり会話に出したりしない
  */
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -18,6 +18,7 @@ import { failure, ok, type Finding } from "../result.ts";
 import { isToolResult, prepare, workspaceIdSchema } from "./common.ts";
 import { assertReadable, checkRelPaths, fieldsFileFor, folderOf, fromError, originFields, previewDirFor, readSettingsFile, rel, trustedOrigin, withJsonError, writeChecked } from "./files.ts";
 import { profileSchema } from "./kintone.ts";
+import { PREVIEW_TOOL_META, previewMeta } from "./preview-app.ts";
 
 /** ボタンごとの式のエラーの件数の上限（AI に返す量） */
 const MAX_ERRORS_PER_BUTTON = 20;
@@ -37,8 +38,8 @@ export function safeRenderError(e: string): string {
 /** 出したファイルの扱い（出し分けごと） */
 const NOTE_CLAUDE_CODE = "out/ のファイルはレコードの値を含む（コミットしない）。利用者に Chrome で開いてもらう（AI はブラウザーを起動しない）";
 const NOTE_DESKTOP =
-  "出した HTML のファイル（results の file）を、利用者に聞かずにそのままチャットに表示する（ファイルをそのまま使い、中の帳票の文書を iframe から取り出さない。sandbox と CSP が外れる）。" +
-  "印刷屋のプレビュー（PDF）とも見比べてもらう（近似。画像はダミー）。out/ のファイルはレコードの値を含む（コミットしない）";
+  "帳票は会話の中のプレビュー（MCP App）に表示される（表示の許可を求められたら、利用者に許可してもらう）。表示されなければ、利用者に out/ の HTML を Chrome で開いてもらう。" +
+  "out/ の HTML を読んだり、ほかのツールで会話に出したりしない（レコードの値が会話に入る）。印刷屋のプレビュー（PDF）とも見比べてもらう（近似。画像はダミー）。out/ のファイルはレコードの値を含む（コミットしない）";
 
 const RENDER_FAILED = "帳票を描けなかった（誤りの文はレコードの値を含みうるので返さない）。pcraft_normalize で設定を確かめ、レコードのファイルを pcraft_record で取り直す。直らなければ利用者に印刷屋のプレビューで確かめてもらう";
 
@@ -68,7 +69,9 @@ export function registerPreview(server: McpServer, ctx: ServerContext): void {
           profile: profileSchema.describe("kintone の接続のファイルの profile（preview の iframe と外部 URL の判定に使う接続先。アプリのフォルダー kintone/<profile>/… の中のファイルは省略する。省略すると defaultProfile、無ければ dev。決まらなければ接続先なし）"),
         })
         .strict(),
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      // Desktop は結果を MCP App で会話の中に表示する（Claude Code は表示しないので付けない）
+      ...(ctx.surface === "desktop" ? { _meta: PREVIEW_TOOL_META } : {})
     },
     (input) =>
       ctx.serial(async () => {
@@ -113,7 +116,8 @@ export function registerPreview(server: McpServer, ctx: ServerContext): void {
               ...originFields(origin),
               note: ctx.surface === "desktop" ? NOTE_DESKTOP : NOTE_CLAUDE_CODE
             },
-            { findings }
+            // 帳票の文書は Desktop の結果の _meta にだけ（MCP App の表示に使う。モデルの文脈に入れない）
+            { findings, ...(ctx.surface === "desktop" ? { meta: previewMeta(result.results) } : {}) }
           );
         } catch (e) {
           return fromError(e);

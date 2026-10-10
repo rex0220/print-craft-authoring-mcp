@@ -5,6 +5,7 @@
 //     dist/vendor/（中核のエンジンが読む moment。中核の paths.ts は「本体の 1 つ上の vendor/」を見る）
 //   - CJS に import.meta.url は無いので、本体のファイルの URL に置き換える（中核の paths.ts が自分の場所から vendor/ を探す）
 //   - 互換表（compat.json。7 章）を埋め込み、ビルドの組み合わせ（版・中核の版・資料の元）が表と合うかを、束ねたもので確かめる（合わなければ止める）
+//   - preview の MCP App の殻の script（src/ui/。ブラウザー。実装案 16 章）を 1 つの IIFE に束ね、本体に文字列で埋め込む（外の script を読まない）
 // 使い方: node build-mcp.mjs [--out <フォルダー>] [--compat <compat.json>] [--no-compat-check]
 //   （--out / --compat / --no-compat-check は試験用: 合わない互換表のビルドを作って、実行のときの incompatible を試す）
 import { build } from "esbuild";
@@ -47,6 +48,29 @@ if (unused.length) throw new Error(`写したが使っていない資料があ�
 const docs = { source: { repository: source.repository, commit: source.commit, short: source.short, dirty: source.dirty }, sections };
 
 rmSync(dist, { recursive: true, force: true });
+
+// preview の MCP App の殻の script: ext-apps の App と表示のコードを 1 つにする（著作権表示は末尾に残す）
+const ui = await build({
+  entryPoints: [path.join(root, "src", "ui", "preview-app.ts")],
+  bundle: true,
+  format: "iife",
+  platform: "browser",
+  target: "es2022",
+  minify: true,
+  write: false,
+  charset: "utf8",
+  legalComments: "eof",
+  tsconfig: path.join(root, "tsconfig.ui.json"),
+  absWorkingDir: root,
+  metafile: true,
+  logLevel: "warning"
+});
+const uiInputs = Object.keys(ui.metafile.inputs);
+const uiOutside = uiInputs.filter((p) => !/^(src|node_modules)\//.test(p.replace(/\\/g, "/")));
+if (uiOutside.length) throw new Error(`preview の殻の script に src/ と node_modules/ の外のファイルが入っている:\n  ${uiOutside.join("\n  ")}`);
+const uiJs = ui.outputFiles[0].text;
+if (/\bimport\s*\(\s*["'`]https?:/.test(uiJs) || /\brequire\(/.test(uiJs)) throw new Error("preview の殻の script が外の script を読もうとしている");
+
 const result = await build({
   entryPoints: [path.join(root, "src", "server.ts")],
   outfile,
@@ -66,6 +90,7 @@ const result = await build({
     __PCRAFT_MCP_VERSION__: JSON.stringify(pkg.version),
     __PCRAFT_DOCS__: JSON.stringify(JSON.stringify(docs)),
     __PCRAFT_COMPAT__: JSON.stringify(JSON.stringify(compat)),
+    __PCRAFT_PREVIEW_APP_JS__: JSON.stringify(uiJs),
     "import.meta.url": "__pcraft_import_meta_url"
   },
   tsconfig: path.join(root, "tsconfig.json"),
@@ -104,4 +129,4 @@ const probed = JSON.parse(probe.stdout.trim().split("\n").at(-1));
 if (probed.version !== pkg.version) throw new Error(`束ねたものの版 ${probed.version} が package.json の ${pkg.version} と違う`);
 if (compatCheck && probed.problem) throw new Error(`互換表とビルドの組み合わせが合わない（compat.json を直す）: ${probed.problem}`);
 
-console.log(`[build-mcp] dist/server/print-craft-mcp.cjs (${bundle.length.toLocaleString()} bytes; ${inputs.length} inputs; 版 ${pkg.version}; 中核 tools ${tools.version}; 資料 ${sections.length} 章、元 ${source.short}${source.dirty ? "+dirty" : ""})`);
+console.log(`[build-mcp] dist/server/print-craft-mcp.cjs (${bundle.length.toLocaleString()} bytes; ${inputs.length} inputs; 版 ${pkg.version}; 中核 tools ${tools.version}; 資料 ${sections.length} 章、元 ${source.short}${source.dirty ? "+dirty" : ""}; preview の殻 ${uiJs.length.toLocaleString()} bytes)`);

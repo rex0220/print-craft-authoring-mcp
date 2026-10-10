@@ -106,6 +106,10 @@ async function main() {
     const { tools } = await client.listTools();
     assert(JSON.stringify(tools.map((t) => t.name)) === JSON.stringify(manifest.tools.map((t) => t.name)), `ツールの一覧が manifest と違う: ${tools.map((t) => t.name).join(", ")}`);
     assert(tools.every((t) => t.inputSchema?.additionalProperties === false), "inputSchema は additionalProperties: false");
+    // preview の MCP App（実装案 16 章）: pcraft_preview が表示の殻を指し、その資源がある
+    assert(tools.find((t) => t.name === "pcraft_preview")?._meta?.ui?.resourceUri === "ui://print-craft/preview.html", "pcraft_preview の _meta.ui.resourceUri");
+    const { resources } = await client.listResources();
+    assert(resources.some((r) => r.uri === "ui://print-craft/preview.html" && r.mimeType === "text/html;profile=mcp-app"), "preview の表示の殻の資源");
     const docs = (await call("pcraft_docs", {})).content.map((c) => c.text).join("\n");
     assert(docs.startsWith(`print-craft MCP ${manifest.version}（`) && /資料の元: rex0220\/print-craft-authoring /.test(docs), "pcraft_docs の目次は版の行と資料の元で始まる");
     const st = (await call("pcraft_status", {})).structuredContent;

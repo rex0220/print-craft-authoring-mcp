@@ -169,8 +169,8 @@ test("15.6: 呼び出しの途中で選んだ profile の接続が変われば c
   }
 });
 
-test("手での確認 5: pcraft_preview の note は、Desktop では聞かずにチャットに表示する（ファイルをそのまま。Takashi「無条件に表示」）、Claude Code では Chrome で開いてもらう", { skip }, async () => {
-  for (const [surface, re] of [["desktop", /^出した HTML のファイル（results の file）を、利用者に聞かずにそのままチャットに表示する.*iframe から取り出さない/], ["claude-code", /Chrome で開いてもらう（AI はブラウザーを起動しない）$/]]) {
+test("手での確認 5: pcraft_preview の note は、Desktop では会話の中の MCP App に表示される（AI は out/ の HTML を読まない・会話に出さない。実装案 16 章）、Claude Code では Chrome で開いてもらう", { skip }, async () => {
+  for (const [surface, re] of [["desktop", /^帳票は会話の中のプレビュー（MCP App）に表示される.*out\/ の HTML を読んだり、ほかのツールで会話に出したりしない/], ["claude-code", /Chrome で開いてもらう（AI はブラウザーを起動しない）$/]]) {
     const root = makeWorkspace();
     const conn = makeConn();
     const set = core.loadConnections(conn.file, { workspaceRoots: [root], env: {} });

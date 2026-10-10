@@ -16,6 +16,7 @@ import { registerFields } from "./tools/fields.ts";
 import { registerKintoneGet } from "./tools/kintone-get.ts";
 import { registerNormalize } from "./tools/normalize.ts";
 import { registerPreview } from "./tools/preview.ts";
+import { registerPreviewApp } from "./tools/preview-app.ts";
 import { registerPull } from "./tools/pull.ts";
 import { registerRecord } from "./tools/record.ts";
 import { registerSaveSettings } from "./tools/save.ts";
@@ -58,6 +59,8 @@ export function createServer(ctx: ServerContext): McpServer {
   registerButtons(server, ctx);
   registerNormalize(server, ctx);
   registerPreview(server, ctx);
+  // Desktop だけ: preview の MCP App の表示の殻（実装案 16 章）
+  if (ctx.surface === "desktop") registerPreviewApp(server);
   registerFields(server, ctx);
   registerRecord(server, ctx);
   registerPull(server, ctx);

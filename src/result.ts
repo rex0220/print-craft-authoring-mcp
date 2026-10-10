@@ -29,8 +29,8 @@ export interface ToolResult {
   isError: boolean;
 }
 
-export function toResult(payload: Record<string, unknown>, isError = false): ToolResult {
-  return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }], structuredContent: payload, isError };
+export function toResult(payload: Record<string, unknown>, isError = false, meta?: Record<string, unknown>): ToolResult {
+  return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }], structuredContent: payload, isError, ...(meta ? { _meta: meta } : {}) };
 }
 
 /** 上限を超えたら、上限 - 1 件と truncated の 1 件（合わせて上限の件数。Codex の B1 レビュー MINOR 2） */
@@ -41,8 +41,9 @@ export function capFindings(findings: readonly Finding[]): Finding[] {
   return [...safe.slice(0, kept), { level: "info", rule: "truncated", message: `findings を ${kept} 件で打ち切った（ほかに ${safe.length - kept} 件）` }];
 }
 
-export function ok(result: Record<string, unknown>, opt: { findings?: readonly Finding[]; digest?: string } = {}): ToolResult {
-  return toResult({ ok: true, status: "ok", findings: capFindings(opt.findings ?? []), result, ...(opt.digest ? { digest: opt.digest } : {}) });
+/** meta は結果の _meta（MCP Apps の UI にだけ渡すもの。モデルの文脈に入れない。preview の MCP App。実装案 16 章） */
+export function ok(result: Record<string, unknown>, opt: { findings?: readonly Finding[]; digest?: string; meta?: Record<string, unknown> } = {}): ToolResult {
+  return toResult({ ok: true, status: "ok", findings: capFindings(opt.findings ?? []), result, ...(opt.digest ? { digest: opt.digest } : {}) }, false, opt.meta);
 }
 
 /** 誤りの文のホームのフォルダーを ~ に（作業フォルダーの絶対パスと利用者の名前を AI に返さない。Codex の B1 レビュー MAJOR 3） */
