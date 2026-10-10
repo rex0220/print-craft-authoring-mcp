@@ -10,6 +10,7 @@ kintone の印刷屋プラグイン（rex0220 Print craft）の帳票の設定 J
 - **Claude Code**（ターミナルの `claude`。Node.js 20 以降）: `/plugin install print-craft --marketplace rex0220/print-craft-authoring-mcp`（Claude Code 2.1.275 以降。それより前は `/plugin marketplace add rex0220/print-craft-authoring-mcp` → `/plugin install print-craft@rex0220-print-craft`）。そのあと `/config` で、印刷屋プラグインの zip と kintone の接続のファイル
 - 印刷屋プラグインの zip は、アプリに入れたものと同じ版（Ver.6 以降）の、配布元から入手したものを使う。kintone の API トークンは、アプリごとのレコード閲覧だけのものを使う
 - 使い方の記事（Claude Desktop）: [rex0220 印刷屋プラグイン - AI(Claude Desktop)にチャットで帳票を作らせる](https://qiita.com/rex0220/items/8cbebab5a5f8a9c21b1f)
+- デザインの作り込みの記事（Claude Desktop）: [rex0220 印刷屋プラグイン - AI(Claude Desktop)に帳票のデザインを作り込ませる](https://qiita.com/rex0220/items/43ceafa584690b4b0a5b)
 
 利用者向け: [PRIVACY.md](PRIVACY.md)（プライバシーポリシー）、[SECURITY.md](SECURITY.md)（脆弱性の報告と、受け入れた危険）、[CHANGELOG.md](CHANGELOG.md)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)（同梱の依存のライセンス）。
 
