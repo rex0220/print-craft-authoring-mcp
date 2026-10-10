@@ -121,6 +121,8 @@ mkdir -p ~/pcraft-b1-ws && cd ~/pcraft-b1-ws
 | 9 | 「同じ名前でもう一度保存して」 | `conflict`（ツールを呼んで返った結果を伝える） | 2026-10-10 Mac（0.1.3）: **期待どおり**（呼んで `conflict` とツールの文をそのまま伝えた。消す・上書きの回り道はせず、「消すかはご自身で」） |
 | 10 | 接続のファイルの dev の `baseUrl` を別のサブドメインに書き換えて `pcraft_fields` | `conflict`（`app-identity-conflict`）。kintone に送らない。元に戻す | 2026-10-10: 省いた（Takashi「10 skip」）。同じ動きは自動の試験 `test/kintone.test.mjs`（接続先を変えた後の `pcraft_fields` / `pcraft_record` / `pcraft_normalize` が `app-identity-conflict`）で確かめている |
 
+リリースの候補 0.1.5（2026-10-10 Mac。プラグインの zip を、ターミナルの `claude --plugin-dir <zip>` で。VS Code の会話の欄では `/plugin` も `--plugin-dir` も使えない）: 1 は `pcraft_status` と `pcraft_workspace_status` が `ready: true`（0.1.5、中核 2.0.2、zip 版 7、profile 4 つ）、8 は zip の中のフックが Write を止めた（回り道なし）。保存から preview までは、展開した zip で保存まで通す自動の検査（`npm run verify:plugin`）に任せた。
+
 ### Desktop（`.mcpb`）
 
 `npm run build:mcpb` → `dist-mcpb/print-craft.mcpb` を入れる → **Desktop を終了して起動し直す** → 新しいチャット。
@@ -138,3 +140,5 @@ preview の帳票は、Desktop では会話の中のプレビュー（MCP App）
 | 6 | 同じ名前でもう一度保存 | `conflict`（ツールを呼んで返った結果を伝える。推し量らない） | 2026-10-10 Mac（0.1.0）: **期待どおり**（呼んで `conflict`、ファイルは変わらないと伝えた）。ただし「いったん削除してから保存する（macOS のファイルの操作で）」も案内した → 指示・資料に「ほかのツールで消す・書き換える回り道をしない（直すなら pcraft_update_button、消すかは利用者）」を足した（0.1.1） |
 | 7 | `env:` のトークンの profile（シェルの設定だけに変数を書いた）で `pcraft_workspace_status` | `tokenApps` の `ready: false`（Desktop にシェルの環境変数は届かない）。`pcraft_fields` は `env-missing` | 2026-10-10: 試していない（kSQL の接続のファイルの profile はすべてログイン名とパスワードで、`env:` が無い） |
 | 8 | `main.log` | `[print-craft-mcp] print-craft MCP 0.1.5 …` の行。秘密の値、レコードの値（宛名など）、印刷屋のログ（`file name err`）、moment の警告（`Deprecation warning`）が無い（捨てたときは「console の出力を N 件捨てた」の行だけ） | 2026-10-10 Mac（0.1.0）: **期待どおり**（`print-craft MCP 0.1.0（中核 … 2.0.0、commit 705337e） node=v24.21.0 surface=desktop workspace=… pluginZip=設定済み`。秘密の値・レコードの値は無い）。同じ秒に 4 回起動していた（Desktop が 4 つのプロセスを立てた）。起動の行に接続のファイルの状態が無かった → `kintoneConfig=設定済み（<ファイルの名前>）` を足した（0.1.1）。0.1.2: `print-craft MCP 0.1.2 … kintoneConfig=設定済み（ksql.config.json）` の行（パスは出ない） |
+
+リリースの候補 0.1.5（2026-10-10 Mac。`.mcpb` を入れ直して Desktop を起動し直した）: 版 0.1.5、2 は `ready`、5 は保存すると会話の中にプレビューが出た。8 は `print-craft MCP 0.1.5（中核 @rex0220/print-craft-authoring-tools 2.0.2、commit d70cacd） node=v24.21.0 surface=desktop … kintoneConfig=設定済み（ksql.config.json）` の行で、`file name err` と `Deprecation warning` は 0 件。
