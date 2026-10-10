@@ -83,7 +83,7 @@ function sizeOf(outer: string): { width: number; height: number } {
   return m ? { width: Number(m[1]), height: Number(m[2]) } : { width: 834, height: 1203 };
 }
 
-/** pcraft_preview の結果の _meta（帳票の文書の合計が上限を超えたら、文書を入れずに omitted） */
+/** pcraft_preview の結果の _meta（_meta 全体の JSON が上限を超えたら、帳票を入れずに omitted） */
 export function previewMeta(results: readonly RenderedForApp[]): Record<string, PreviewPayload> {
   const buttons: PreviewButton[] = results.map((r) => ({
     menu: r.menu,
@@ -94,6 +94,6 @@ export function previewMeta(results: readonly RenderedForApp[]): Record<string, 
     errors: r.errors,
     inner: r.inner
   }));
-  const total = buttons.reduce((n, b) => n + Buffer.byteLength(b.inner, "utf8"), 0);
-  return { [PREVIEW_META_KEY]: total > PREVIEW_MAX_BYTES ? { version: 1, buttons: [], omitted: "too-large" } : { version: 1, buttons } };
+  const meta: Record<string, PreviewPayload> = { [PREVIEW_META_KEY]: { version: 1, buttons } };
+  return Buffer.byteLength(JSON.stringify(meta), "utf8") > PREVIEW_MAX_BYTES ? { [PREVIEW_META_KEY]: { version: 1, buttons: [], omitted: "too-large" } } : meta;
 }

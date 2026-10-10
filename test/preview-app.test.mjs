@@ -107,13 +107,23 @@ test("Claude Code: ツールの定義・資源・結果に MCP App のものを�
   }
 });
 
-test("大きさの上限: 帳票の文書の合計が 4 MiB を超えたら入れない（omitted）", () => {
+test("大きさの上限: 結果の _meta 全体の JSON（UTF-8）が 4 MiB を超えたら帳票を入れない（omitted）。ちょうどは入れる、1 バイト超えは省く、マルチバイト・JSON の逃がし・誤りの文も数える（Codex の MCP App のレビュー MINOR 2）", () => {
   const one = { menu: "a", fileName: "a.pdf", pageSize: "A4", orientation: "p", dpi: "96", pages: 1, errors: [], html: '<iframe sandbox="" title="a" width="834" height="1203" srcdoc="">' };
   const small = previewMeta([{ ...one, inner: "<p>x</p>" }])[PREVIEW_META_KEY];
   assert.deepEqual([small.buttons.length, small.buttons[0].width, small.buttons[0].height, small.buttons[0].paper], [1, 834, 1203, "A4 縦 96 dpi"]);
-  const big = previewMeta([{ ...one, inner: "x".repeat(PREVIEW_MAX_BYTES / 2 + 1) }, { ...one, inner: "y".repeat(PREVIEW_MAX_BYTES / 2 + 1) }])[PREVIEW_META_KEY];
-  assert.deepEqual(big, { version: 1, buttons: [], omitted: "too-large" });
   assert.deepEqual(previewMeta([{ ...one, orientation: "l", html: "壊れた", inner: "" }])[PREVIEW_META_KEY].buttons[0].paper, "A4 横 96 dpi");
+  const bytes = (meta) => Buffer.byteLength(JSON.stringify(meta), "utf8");
+  const base = bytes(previewMeta([{ ...one, inner: "" }]));
+  const TOO_LARGE = { version: 1, buttons: [], omitted: "too-large" };
+  const exact = previewMeta([{ ...one, inner: "x".repeat(PREVIEW_MAX_BYTES - base) }]);
+  assert.equal(bytes(exact), PREVIEW_MAX_BYTES);
+  assert.equal(exact[PREVIEW_META_KEY].buttons.length, 1, "ちょうど上限は入れる");
+  assert.deepEqual(previewMeta([{ ...one, inner: "x".repeat(PREVIEW_MAX_BYTES - base + 1) }])[PREVIEW_META_KEY], TOO_LARGE, "1 バイト超えは省く");
+  const room = PREVIEW_MAX_BYTES - base;
+  assert.deepEqual(previewMeta([{ ...one, inner: "あ".repeat(Math.floor(room / 3) + 1) }])[PREVIEW_META_KEY], TOO_LARGE, "文字数でなく UTF-8 のバイト数");
+  assert.deepEqual(previewMeta([{ ...one, inner: '"'.repeat(Math.floor(room / 2) + 1) }])[PREVIEW_META_KEY], TOO_LARGE, "JSON の逃がし（\\\"）も数える");
+  assert.deepEqual(previewMeta([{ ...one, inner: "<p>x</p>", errors: ["e".repeat(room)] }])[PREVIEW_META_KEY], TOO_LARGE, "誤りの文も数える");
+  assert.deepEqual(previewMeta([{ ...one, inner: "x".repeat(room / 2) }, { ...one, inner: "y".repeat(room / 2) }])[PREVIEW_META_KEY], TOO_LARGE, "ボタンが 2 つなら 2 つ目の名前などの分も数える");
 });
 
 test("表示の殻の描き方（happy-dom）: iframe は sandbox=\"\" と srcdoc、ボタン名などは文字（HTML にしない）、データが無い・壊れている・大きすぎるときは決まった文、幅に合わせて縮める", () => {

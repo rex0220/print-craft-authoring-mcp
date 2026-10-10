@@ -9,7 +9,7 @@ export const PREVIEW_UI_URI = "ui://print-craft/preview.html";
 export const MCP_APP_MIME_TYPE = "text/html;profile=mcp-app";
 /** 結果の _meta のキー */
 export const PREVIEW_META_KEY = "print-craft/preview";
-/** 帳票の文書の合計の上限（超えたら _meta に入れない） */
+/** 結果の _meta 全体の上限（JSON の UTF-8 のバイト数。帳票の文書・ボタン名・ファイル名・誤りの文も数える。超えたら帳票を入れない。Codex の MCP App のレビュー MINOR 2） */
 export const PREVIEW_MAX_BYTES = 4 * 1024 * 1024;
 
 export interface PreviewButton {
