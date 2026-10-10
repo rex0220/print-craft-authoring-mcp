@@ -107,9 +107,13 @@ export interface SettingsFile {
  * 各 JSON の読み込みの境で決まった文にする。Codex の B1 3 回目 MINOR 2）
  */
 export function jsonErrorWhere(e: unknown): string {
-  const m = /in JSON at position (\d+)(?: \(line (\d+) column (\d+)\))?/.exec(e instanceof Error ? e.message : String(e));
-  if (!m) return "";
-  return m[2] ? `（${m[2]} 行 ${m[3]} 列）` : `（位置 ${m[1]}）`;
+  const msg = e instanceof Error ? e.message : String(e);
+  const m = /in JSON at position (\d+)(?: \(line (\d+) column (\d+)\))?/.exec(msg);
+  if (m) return m[2] ? `（${m[2]} 行 ${m[3]} 列）` : `（位置 ${m[1]}）`;
+  // 中核（tools 2.0.0）の readJsonLimited は、生の誤りの文でなく位置だけを同じ形で入れる
+  const c = /（(\d+) 行 (\d+) 列）|（位置 (\d+)）/.exec(msg);
+  if (c) return c[1] ? `（${c[1]} 行 ${c[2]} 列）` : `（位置 ${c[3]}）`;
+  return "";
 }
 
 /** JSON のファイルを中核で読む関数を呼び、JSON として読めないときの文を決まった文に（what は「レコードのファイル」など） */
@@ -146,19 +150,23 @@ export function folderOf(root: string, file: string) {
   return appFolderOfFile(root, file);
 }
 
-/** 項目定義のファイル: 引数の fields、無ければアプリのフォルダーの fields.json。kintone/** の中なら先に確かめる */
+/**
+ * 項目定義のファイル。アプリのフォルダーの中の設定は、いつも同じフォルダーの fields.json（fields はそれと同じときだけ。別のアプリ・profile・settings/ の
+ * 項目定義で検査しない。保存の中核と同じく denied。Codex の実装レビュー MAJOR 3）。ほかは引数の fields が要る。kintone/** の中なら先に確かめる
+ */
 export function fieldsFileFor(root: string, file: string, fields: string | undefined, mode: ModeSource): string {
-  if (fields) {
-    const f = resolveRead(fields, root);
-    if (!existsSync(f)) throw new InputError(`項目定義のファイルが無い: ${rel(root, f)}（pcraft_fields か fields コマンドで取る）`);
+  const folder = folderOf(root, file);
+  if (folder) {
+    const own = path.join(folder.dir, "fields.json");
+    if (!existsSync(own)) throw new InputError(`アプリのフォルダーに fields.json が無い: ${rel(root, own)}（pcraft_fields か fields コマンドで取る）`);
+    const f = resolveRead(own, root);
+    if (fields !== undefined && resolveRead(fields, root) !== f) throw new PermissionError(`アプリのフォルダーの中の設定は、同じフォルダーの fields.json で検査する（fields は渡さないか、${rel(root, f)} にする）`);
     assertReadable(root, f, mode);
     return f;
   }
-  const folder = folderOf(root, file);
-  if (!folder) throw new InputError("fields（項目定義のファイル）が要る（アプリのフォルダー kintone/<profile>/<番号>-…/ の中の設定なら同じフォルダーの fields.json を使う）");
-  const own = path.join(folder.dir, "fields.json");
-  if (!existsSync(own)) throw new InputError(`アプリのフォルダーに fields.json が無い: ${rel(root, own)}（pcraft_fields か fields コマンドで取る）`);
-  const f = resolveRead(own, root);
+  if (!fields) throw new InputError("fields（項目定義のファイル）が要る（アプリのフォルダー kintone/<profile>/<番号>-…/ の中の設定なら同じフォルダーの fields.json を使う）");
+  const f = resolveRead(fields, root);
+  if (!existsSync(f)) throw new InputError(`項目定義のファイルが無い: ${rel(root, f)}（pcraft_fields か fields コマンドで取る）`);
   assertReadable(root, f, mode);
   return f;
 }

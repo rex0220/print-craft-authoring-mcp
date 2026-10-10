@@ -35,6 +35,20 @@ test("ビルドの組み合わせが互換表と合わなければ、ビルド�
   }
 });
 
+test("中核の API の版（coreApiVersion。tools 2.0.0 で 2）が互換表と違えばビルドを止める（1.x の中核の形で作らない。実装案 15.11）", () => {
+  assert.equal(COMPAT.runtimeChecks.coreApiVersion, 2);
+  for (const v of [1, undefined]) {
+    const { coreApiVersion: _omit, ...rest } = COMPAT.runtimeChecks;
+    const b = buildWith({ ...COMPAT, runtimeChecks: v === undefined ? rest : { ...rest, coreApiVersion: v } });
+    try {
+      assert.notEqual(b.status, 0, String(v));
+      assert.match(b.output, /互換表とビルドの組み合わせが合わない.*中核の API の版/);
+    } finally {
+      rmSync(b.dir, { recursive: true, force: true });
+    }
+  }
+});
+
 test("合わない互換表のビルド: 作業フォルダーを使うツールは incompatible、資料・診断は読める", { skip }, async () => {
   const b = buildWith({ ...COMPAT, runtimeChecks: { ...COMPAT.runtimeChecks, docsRevision: "0000000" } }, ["--no-compat-check"]);
   assert.equal(b.status, 0, b.output);

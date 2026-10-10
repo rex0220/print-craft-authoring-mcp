@@ -34,7 +34,7 @@ import {
   type WorkspaceMode
 } from "../core.ts";
 import type { ServerContext } from "../context.ts";
-import { ok, type Finding } from "../result.ts";
+import { ok, sanitizeMessage, type Finding } from "../result.ts";
 import { incompatibleResult, lazyMode, workspaceIdSchema } from "./common.ts";
 import { appDirIn, checkRelPaths, fromError, insideDir, readSettingsFile, redactPersonal, rel } from "./files.ts";
 import { appSchema, profileSchema } from "./kintone.ts";
@@ -159,12 +159,15 @@ export function registerWorkspaceFiles(server: McpServer, ctx: ServerContext): v
         if (incompatible) return incompatible;
         // inbox の実体が作業フォルダーの中か（symlink で外を指していれば、一覧を作る前に断る。Codex の B1 レビュー BLOCKER 1）。kintone/ と profile のフォルダーは中核が確かめる
         if (existsSync(path.join(root, INBOX))) insideDir(root, path.join(root, INBOX));
+        // 印の合わないフォルダー・接続の変化は中核が ConnectionError で止める（conflict。fromError）。理由の文は中核が決まった文にする。ここでも念のため除く（Codex の実装レビュー BLOCKER 1）
         const r = takeInbox(root, ctx.mode(root), input.profile);
+        const skipped = r.skipped.map((s) => ({ file: s.file, reason: sanitizeMessage(s.reason) }));
+        const warnings = r.warnings.map(sanitizeMessage);
         const findings: Finding[] = [
-          ...r.skipped.map((s) => ({ level: "warning", rule: "take.skipped", message: `${s.file}: ${s.reason}` })),
-          ...r.warnings.map((w) => ({ level: "warning", rule: "take.warning", message: w }))
+          ...skipped.map((s) => ({ level: "warning", rule: "take.skipped", message: `${s.file}: ${s.reason}` })),
+          ...warnings.map((w) => ({ level: "warning", rule: "take.warning", message: w }))
         ];
-        return ok({ moved: r.moved, skipped: r.skipped, ...(r.moved.length || r.skipped.length ? {} : { note: `${INBOX}/ に設定のファイルが無い` }) }, { findings });
+        return ok({ moved: r.moved, skipped, ...(r.moved.length || skipped.length ? {} : { note: `${INBOX}/ に設定のファイルが無い` }) }, { findings });
       } catch (e) {
         return fromError(e);
       }

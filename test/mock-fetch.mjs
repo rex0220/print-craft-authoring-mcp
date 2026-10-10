@@ -3,7 +3,7 @@
 // 送られた要求（メソッド、URL、認証のヘッダーがあるか、その値の sha256 の先頭 16 文字）を PCRAFT_TEST_FETCH_LOG のファイルに 1 行ずつ書く
 // （ヘッダーの値そのものは書かない。アプリごとに正しいトークンを送ったかを digest で確かめる。実装案 15.14）
 import { createHash } from "node:crypto";
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -11,6 +11,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const FIELDS = JSON.parse(readFileSync(path.join(here, "fixtures", "fields-3740.json"), "utf8"));
 const RECORD = JSON.parse(readFileSync(path.join(here, "fixtures", "record-3740-3.json"), "utf8")).record;
 const LOG = process.env.PCRAFT_TEST_FETCH_LOG;
+/**
+ * 試験だけ: 最初の要求を受けたときに、kintone の接続のファイルを書き換える（呼び出しの途中の接続の変化を再現する。connection-changed）。
+ * 値は指示のファイルのパス（{ target: 接続のファイル, content: 新しい中身 }）。1 回使ったら消す
+ */
+const REWRITE = process.env.PCRAFT_TEST_REWRITE_CONN;
 /** 印刷屋が保存した形のプラグインの設定（試験が中核の writeConfig で作ってファイルに置く） */
 const PLUGIN_CONFIG = process.env.PCRAFT_TEST_PLUGIN_CONFIG;
 const PRINT_CRAFT_PLUGIN_ID = "lcapkanpjdabgphknkabojmcfhonhkhp";
@@ -31,6 +36,11 @@ globalThis.fetch = async (input, init = {}) => {
   const token = hashOf(/^x-cybozu-api-token$/i);
   const auth = hashOf(/^x-cybozu-authorization$/i);
   if (LOG) appendFileSync(LOG, `${JSON.stringify({ method: init.method ?? "GET", host: url.host, path: url.pathname, query: Object.fromEntries(url.searchParams), hasToken, token, auth })}\n`);
+  if (REWRITE && existsSync(REWRITE)) {
+    const { target, content } = JSON.parse(readFileSync(REWRITE, "utf8"));
+    writeFileSync(target, JSON.stringify(content), { mode: 0o600 });
+    rmSync(REWRITE);
+  }
   if (!HOSTS.has(url.host)) return notFound();
   if (!hasToken) return json(401, { code: "CB_AU01", id: "x", message: "SERVER-SECRET-MESSAGE ログインしてください" });
   const m = url.pathname.match(/^\/k\/(?:guest\/(\d+)\/)?v1\/(.+)\.json$/);
