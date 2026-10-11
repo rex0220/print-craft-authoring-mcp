@@ -10,6 +10,9 @@ const DIRS = new Set(['/ws', '/ws/settings', '/ws/kintone', '/ws/kintone/h', '/w
 const FILES = new Set(['/ws/settings/a.json'])
 const LINKS: Record<string, string> = { '/link': '/ws/kintone' }
 
+/** Windows の Claude Code は $.fs.stat('/ws') を C:\ws に直してから渡すので、ドライブ名を外して区切りを / にそろえる */
+const posix = (p: string) => p.replace(/^[A-Za-z]:/, '').replace(/\\/g, '/')
+
 function fold(p: string): string {
   const out: string[] = []
   for (const part of p.split('/')) {
@@ -31,8 +34,9 @@ function engine(on: any, { session = '/ws', roots = [], brokenRoot = false, noRo
   on('session.root', () => (brokenRoot ? { deny: 'root is broken' } : { value: session }))
   on('session.cwd', () => ({ value: session }))
   on('fs.stat', ($: unknown, e: { path: string }) => {
-    const real = fold(e.path)
-    const isLink = Object.keys(LINKS).some(l => e.path === l || e.path.startsWith(l + '/'))
+    const path = posix(e.path)
+    const real = fold(path)
+    const isLink = Object.keys(LINKS).some(l => path === l || path.startsWith(l + '/'))
     if (DIRS.has(real)) return { value: { kind: 'dir', size: 0, mtimeMs: 0, isLink, realPath: real } }
     if (FILES.has(real)) return { value: { kind: 'file', size: 1, mtimeMs: 0, isLink, realPath: real } }
     return { deny: `ENOENT ${e.path}` }

@@ -54,7 +54,7 @@ test("console-gate: 印刷屋の処理の文脈（quietly の中と、そこか�
 });
 
 test("sanitizeMessage: 作業フォルダーはルートそのものか区切りが続くときだけ置き換える（似た名前の別のフォルダーには当てない）。区切りの混在、Windows の大文字小文字と UNC", () => {
-  setScrubRoots(["/work/app/"]);
+  setScrubRoots(["/work/app/"], "linux");
   assert.equal(sanitizeMessage("/work/app/settings/x.json を読めない"), "settings/x.json を読めない");
   assert.equal(sanitizeMessage("/work/app-copy/x.json と /work/apple"), "/work/app-copy/x.json と /work/apple", "名前の続きには当てない");
   assert.equal(sanitizeMessage("（/work/app）の外"), "（（作業フォルダー））の外");
@@ -65,8 +65,8 @@ test("sanitizeMessage: 作業フォルダーはルートそのものか区切り
   assert.equal(sanitizeMessage("c:/users/A/WS/settings/x.json を読めない"), "settings/x.json を読めない", "Windows はドライブ名・大文字小文字・区切りが違っても");
   assert.equal(sanitizeMessage("C:\\Users\\a\\ws2\\x.json"), "C:\\Users\\a\\ws2\\x.json");
   assert.equal(sanitizeMessage("\\\\srv\\share\\ws\\records\\3.json"), "records\\3.json", "UNC");
-  assert.ok(rootPattern("/a/b").flags.includes("g") && !rootPattern("/a/b").flags.includes("i"));
-  setScrubRoots(["/work/app"]);
+  assert.ok(rootPattern("/a/b", "linux").flags.includes("g") && !rootPattern("/a/b", "linux").flags.includes("i"));
+  setScrubRoots(["/work/app"], "linux");
   for (const [input, expected] of [
     ["[/work/app]", "[（作業フォルダー）]"],
     ["</work/app>", "<（作業フォルダー）>"],
