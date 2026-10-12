@@ -135,6 +135,8 @@ mkdir -p ~/pcraft-b1-ws && cd ~/pcraft-b1-ws
 
 公開した 0.1.5 を marketplace から（2026-10-10 Mac、ターミナルの Claude Code 2.1.296）: `/plugin` の画面から user scope で入れた（入れる前の画面は「Component summary not available for remote plugin」）→ `/plugin configure print-craft@rex0220-print-craft` で zip と接続のファイル（作業フォルダーは空のまま）→ 起動し直して「印刷屋の準備を確かめて」→ 作業フォルダーの登録の確認 → `/mcp` で再接続 → `pcraft_status` と `pcraft_workspace_status` が 0.1.5（中核 2.0.2）・`ready: true`。
 
+公開した 0.2.0 を marketplace から（2026-10-12 Mac、ターミナルの Claude Code）: `/plugin marketplace update rex0220-print-craft`（「1 plugin bumped」）→ `/reload-plugins` → `pcraft_status` が 0.2.0・中核 2.1.0（c34059c）・authoring API 1〜3、`ready`（zip は Ver.7 のまま。関連レコード一覧を使うときは `/config` で Ver.8 の zip にする）。
+
 ### Desktop（`.mcpb`）
 
 `npm run build:mcpb` → `dist-mcpb/print-craft.mcpb` を入れる → **Desktop を終了して起動し直す** → 新しいチャット。
@@ -154,3 +156,5 @@ preview の帳票は、Desktop では会話の中のプレビュー（MCP App）
 | 8 | `main.log` | `[print-craft-mcp] print-craft MCP 0.1.5 …` の行。秘密の値、レコードの値（宛名など）、印刷屋のログ（`file name err`）、moment の警告（`Deprecation warning`）が無い（捨てたときは「console の出力を N 件捨てた」の行だけ） | 2026-10-10 Mac（0.1.0）: **期待どおり**（`print-craft MCP 0.1.0（中核 … 2.0.0、commit 705337e） node=v24.21.0 surface=desktop workspace=… pluginZip=設定済み`。秘密の値・レコードの値は無い）。同じ秒に 4 回起動していた（Desktop が 4 つのプロセスを立てた）。起動の行に接続のファイルの状態が無かった → `kintoneConfig=設定済み（<ファイルの名前>）` を足した（0.1.1）。0.1.2: `print-craft MCP 0.1.2 … kintoneConfig=設定済み（ksql.config.json）` の行（パスは出ない） |
 
 リリースの候補 0.1.5（2026-10-10 Mac。`.mcpb` を入れ直して Desktop を起動し直した）: 版 0.1.5、2 は `ready`、5 は保存すると会話の中にプレビューが出た。8 は `print-craft MCP 0.1.5（中核 @rex0220/print-craft-authoring-tools 2.0.2、commit d70cacd） node=v24.21.0 surface=desktop … kintoneConfig=設定済み（ksql.config.json）` の行で、`file name err` と `Deprecation warning` は 0 件。
+
+0.2.0（2026-10-12 Mac。リリースの候補 `716b14c` の `.mcpb` を入れ直して Desktop を起動し直した。印刷屋 Ver.8 の zip）: 2 は版 0.2.0・中核 2.1.0（c34059c）・zip は プラグイン v8 / authoring API 3 で `ready`。3 は関連レコード一覧のあるアプリ 4121「ガントチャート」（項目 49、関連レコード一覧 2 つとも参照先の項目定義あり。要約に `task_list$task_name` などと「1 行目・一覧用では使えない」の案内）。4 は `pcraft_record`（レコード 2780。`task_list` 13 行、`related_project` 0 行、形だけ）。5 は工程表の設定（作業フォルダーに手で置いた）を `pcraft_normalize`（`check` の差 0。警告は `formula.rawHtml` だけ）→ `pcraft_preview`（式の誤り 0、1 ページ。会話の中にプロジェクト情報 + タスク 13 行の工程表が出た）。8 は `print-craft MCP 0.2.0（中核 @rex0220/print-craft-authoring-tools 2.1.0、commit c34059c）` の行があり、レコードの値（プロジェクト名・タスク名・メンバー名）、秘密の値、印刷屋のログ、moment の警告は無し（MCP サーバーのログも同じ）。Claude Code の marketplace 経由は公開の後に確かめる。
