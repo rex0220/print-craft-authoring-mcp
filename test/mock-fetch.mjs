@@ -10,6 +10,13 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FIELDS = JSON.parse(readFileSync(path.join(here, "fixtures", "fields-3740.json"), "utf8"));
 const RECORD = JSON.parse(readFileSync(path.join(here, "fixtures", "record-3740-3.json"), "utf8")).record;
+/** 関連レコード一覧の試験（印刷屋 Ver.8）: 4121 プロジェクト（task_list → 4200 タスク。uuid = project_id）。値は合成（個人情報なし） */
+const FIELDS_4121 = JSON.parse(readFileSync(path.join(here, "fixtures", "fields-4121.json"), "utf8"));
+const FIELDS_4200 = JSON.parse(readFileSync(path.join(here, "fixtures", "fields-4200.json"), "utf8"));
+const RECORD_4121 = JSON.parse(readFileSync(path.join(here, "fixtures", "record-4121-2780.json"), "utf8")).record;
+const TASKS_4200 = JSON.parse(readFileSync(path.join(here, "fixtures", "records-4200.json"), "utf8")).records;
+const FORMS = { 3740: FIELDS, 101: FIELDS, 4121: FIELDS_4121, 4200: FIELDS_4200 };
+const NAMES = { 3740: "見積書(印刷屋)", 101: "見積書(印刷屋)", 4121: "ガントチャート", 4200: "タスク" };
 const LOG = process.env.PCRAFT_TEST_FETCH_LOG;
 /**
  * 試験だけ: 最初の要求を受けたときに、kintone の接続のファイルを書き換える（呼び出しの途中の接続の変化を再現する。connection-changed）。
@@ -20,7 +27,7 @@ const REWRITE = process.env.PCRAFT_TEST_REWRITE_CONN;
 const PLUGIN_CONFIG = process.env.PCRAFT_TEST_PLUGIN_CONFIG;
 const PRINT_CRAFT_PLUGIN_ID = "lcapkanpjdabgphknkabojmcfhonhkhp";
 const HOSTS = new Set(["x.cybozu.com", "dev-x.cybozu.com"]);
-const APPS = new Set(["3740", "101"]);
+const APPS = new Set(["3740", "101", "4121", "4200"]);
 
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const notFound = () => json(404, { code: "GAIA_AP01", id: "x", message: "SERVER-SECRET-MESSAGE 指定したアプリは存在しません" });
@@ -49,11 +56,18 @@ globalThis.fetch = async (input, init = {}) => {
   const q = url.searchParams;
   const appOf = (k) => (APPS.has(q.get(k) ?? "") ? q.get(k) : null);
   if (api === "app" && appOf("id")) {
-    return json(200, { appId: q.get("id"), code: "", name: "見積書(印刷屋)", description: "<b>説明の全文 DESCRIPTION-SECRET</b>", spaceId: m[1] ? "11" : null, threadId: m[1] ? "12" : null, creator: { code: "taro", name: "山田太郎" }, modifier: { code: "taro", name: "山田太郎" } });
+    return json(200, { appId: q.get("id"), code: "", name: NAMES[q.get("id")], description: "<b>説明の全文 DESCRIPTION-SECRET</b>", spaceId: m[1] ? "11" : null, threadId: m[1] ? "12" : null, creator: { code: "taro", name: "山田太郎" }, modifier: { code: "taro", name: "山田太郎" } });
   }
-  if ((api === "app/form/fields" || api === "preview/app/form/fields") && appOf("app")) return json(200, { properties: FIELDS.properties, revision: "5" });
-  if ((api === "app/form/layout" || api === "preview/app/form/layout") && appOf("app")) return json(200, { layout: FIELDS.layout, revision: "5" });
+  if ((api === "app/form/fields" || api === "preview/app/form/fields") && appOf("app")) return json(200, { properties: FORMS[appOf("app")].properties, revision: "5" });
+  if ((api === "app/form/layout" || api === "preview/app/form/layout") && appOf("app")) return json(200, { layout: FORMS[appOf("app")].layout, revision: "5" });
+  if (api === "record" && appOf("app") === "4121" && q.get("id") === "2780") return json(200, { record: RECORD_4121 });
   if (api === "record" && appOf("app") && q.get("id") === "3") return json(200, { record: RECORD });
+  if (api === "records" && appOf("app") === "4200") {
+    // 関連レコードの取得（印刷屋の zip の規則: query に条件、totalCount は最初のページだけ）。fields を絞られてもそのまま返す（形の確認は中核）
+    const query = q.get("query") ?? "";
+    const rows = query.includes('"u-2780"') ? TASKS_4200 : [];
+    return json(200, { records: rows, totalCount: q.get("totalCount") === "true" ? String(rows.length) : null });
+  }
   if ((api === "app/plugin/config" || api === "preview/app/plugin/config") && appOf("app")) {
     if (q.get("id") !== PRINT_CRAFT_PLUGIN_ID || !PLUGIN_CONFIG) return json(404, { code: "GAIA_PL18", id: "x", message: "SERVER-SECRET-MESSAGE プラグインが追加されていません" });
     return json(200, { config: JSON.parse(readFileSync(PLUGIN_CONFIG, "utf8")), revision: "12" });

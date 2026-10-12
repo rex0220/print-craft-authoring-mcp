@@ -1,0 +1,133 @@
+{
+  "properties": {
+    "project_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "project_name",
+      "label": "プロジェクト名",
+      "noLabel": false,
+      "required": false
+    },
+    "uuid": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "uuid",
+      "label": "UUID",
+      "noLabel": false,
+      "required": false
+    },
+    "record_type": {
+      "type": "DROP_DOWN",
+      "code": "record_type",
+      "label": "種別",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "project": {
+          "label": "project",
+          "index": "0"
+        },
+        "task": {
+          "label": "task",
+          "index": "1"
+        }
+      },
+      "defaultValue": "project"
+    },
+    "manager_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "manager_name",
+      "label": "責任者",
+      "noLabel": false,
+      "required": false
+    },
+    "task_list": {
+      "type": "REFERENCE_TABLE",
+      "code": "task_list",
+      "label": "タスク一覧",
+      "noLabel": false,
+      "referenceTable": {
+        "relatedApp": {
+          "app": "4200",
+          "code": ""
+        },
+        "condition": {
+          "field": "uuid",
+          "relatedField": "project_id"
+        },
+        "filterCond": "task_delete not in (\"ON\")",
+        "displayFields": [
+          "task_name",
+          "assignee_name",
+          "start_date",
+          "end_date",
+          "progress"
+        ],
+        "sort": "display_order asc",
+        "size": "5"
+      }
+    },
+    "related_hidden": {
+      "type": "REFERENCE_TABLE",
+      "code": "related_hidden",
+      "label": "権限なしの参照",
+      "noLabel": false,
+      "referenceTable": null
+    },
+    "レコード番号": {
+      "type": "RECORD_NUMBER",
+      "code": "レコード番号",
+      "label": "レコード番号",
+      "noLabel": false,
+      "required": false
+    }
+  },
+  "layout": [
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "project_name"
+        },
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "uuid"
+        },
+        {
+          "type": "DROP_DOWN",
+          "code": "record_type"
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "manager_name"
+        },
+        {
+          "type": "RECORD_NUMBER",
+          "code": "レコード番号"
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "REFERENCE_TABLE",
+          "code": "task_list"
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "REFERENCE_TABLE",
+          "code": "related_hidden"
+        }
+      ]
+    }
+  ]
+}

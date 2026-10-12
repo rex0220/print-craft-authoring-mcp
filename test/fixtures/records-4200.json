@@ -1,0 +1,154 @@
+{
+  "records": [
+    {
+      "$id": {
+        "type": "__ID__",
+        "value": "101"
+      },
+      "$revision": {
+        "type": "__REVISION__",
+        "value": "1"
+      },
+      "レコード番号": {
+        "type": "RECORD_NUMBER",
+        "value": "101"
+      },
+      "task_name": {
+        "type": "SINGLE_LINE_TEXT",
+        "value": "要件定義 TASK-SECRET-1"
+      },
+      "project_id": {
+        "type": "SINGLE_LINE_TEXT",
+        "value": "u-2780"
+      },
+      "assignee_name": {
+        "type": "SINGLE_LINE_TEXT",
+        "value": "担当A"
+      },
+      "start_date": {
+        "type": "DATE",
+        "value": "2026-10-01"
+      },
+      "end_date": {
+        "type": "DATE",
+        "value": "2026-10-05"
+      },
+      "progress": {
+        "type": "NUMBER",
+        "value": "100"
+      },
+      "task_delete": {
+        "type": "CHECK_BOX",
+        "value": []
+      },
+      "display_order": {
+        "type": "NUMBER",
+        "value": "1"
+      },
+      "memo": {
+        "type": "MULTI_LINE_TEXT",
+        "value": "メモ\n2 行目"
+      }
+    },
+    {
+      "$id": {
+        "type": "__ID__",
+        "value": "102"
+      },
+      "$revision": {
+        "type": "__REVISION__",
+        "value": "1"
+      },
+      "レコード番号": {
+        "type": "RECORD_NUMBER",
+        "value": "102"
+      },
+      "task_name": {
+        "type": "SINGLE_LINE_TEXT",
+        "value": "設計 TASK-SECRET-2"
+      },
+      "project_id": {
+        "type": "SINGLE_LINE_TEXT",
+        "value": "u-2780"
+      },
+      "assignee_name": {
+        "type": "SINGLE_LINE_TEXT",
+        "value": "担当B"
+      },
+      "start_date": {
+        "type": "DATE",
+        "value": "2026-10-06"
+      },
+      "end_date": {
+        "type": "DATE",
+        "value": "2026-10-12"
+      },
+      "progress": {
+        "type": "NUMBER",
+        "value": "50"
+      },
+      "task_delete": {
+        "type": "CHECK_BOX",
+        "value": []
+      },
+      "display_order": {
+        "type": "NUMBER",
+        "value": "2"
+      },
+      "memo": {
+        "type": "MULTI_LINE_TEXT",
+        "value": "メモ\n2 行目"
+      }
+    },
+    {
+      "$id": {
+        "type": "__ID__",
+        "value": "103"
+      },
+      "$revision": {
+        "type": "__REVISION__",
+        "value": "1"
+      },
+      "レコード番号": {
+        "type": "RECORD_NUMBER",
+        "value": "103"
+      },
+      "task_name": {
+        "type": "SINGLE_LINE_TEXT",
+        "value": "実装 TASK-SECRET-3"
+      },
+      "project_id": {
+        "type": "SINGLE_LINE_TEXT",
+        "value": "u-2780"
+      },
+      "assignee_name": {
+        "type": "SINGLE_LINE_TEXT",
+        "value": "担当C"
+      },
+      "start_date": {
+        "type": "DATE",
+        "value": "2026-10-13"
+      },
+      "end_date": {
+        "type": "DATE",
+        "value": "2026-10-31"
+      },
+      "progress": {
+        "type": "NUMBER",
+        "value": "0"
+      },
+      "task_delete": {
+        "type": "CHECK_BOX",
+        "value": []
+      },
+      "display_order": {
+        "type": "NUMBER",
+        "value": "3"
+      },
+      "memo": {
+        "type": "MULTI_LINE_TEXT",
+        "value": "メモ\n2 行目"
+      }
+    }
+  ]
+}

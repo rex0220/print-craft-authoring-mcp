@@ -2,7 +2,7 @@
 
 kintone への接続は **kintone の接続のファイル**（kSQL の `ksql.config.json` と同じ形。利用者が書いて、print-craft MCP の設定「kintone の接続のファイル」で選ぶ）だけを使う。接続のファイルと、そこが名前を書いた環境変数（`env:` の参照先）は利用者のもの（秘密の値を含む）。**AI は読まない・書かない・表示しない**。状態は `pcraft_workspace_status` で確かめる（profile ごとの接続先、認証の種類、アプリごとのトークンが使えるか。秘密の値と環境変数の名前は返らない）。
 
-- 接続のファイルの `profiles` に、profile ごとの接続先（`baseUrl`）と、アプリごとの API トークン（`tokenMap`）か、ログイン名とパスワードがある。ドメインが違っても、同じドメインでアプリが違ってもよい
+- 接続のファイルの `profiles` に、profile ごとの接続先（`baseUrl`）と、アプリごとの API トークン（`tokenMap`）か、ログイン名とパスワードがある。ドメインが違っても、同じドメインでアプリが違ってもよい。関連レコード一覧（印刷屋 Ver.8）の参照先のアプリの項目定義とレコードも、同じ profile の `tokenMap` のそのアプリのトークンで取る（無ければ `pcraft_fields` の `findings`（`fields.related`）に理由が出て、その関連レコード一覧は帳票で使えない）
 - ツールは `profile`（省略すると接続のファイルの `defaultProfile`、無ければ `dev`）と `app`（アプリの番号）で使う。アプリの名前は kintone から取る。ゲストスペースは profile で決まる（1 つの profile は 1 つのスペース）。profile が複数あるときは、どの profile（接続先）のアプリかを利用者に確かめる
 - 保存先は **アプリのフォルダー `kintone/<profile>/<番号>-<アプリ名>/`**: `fields.json`（`pcraft_fields`）、`records/<番号>.json`（`pcraft_record`）、`out/`（`pcraft_preview`）、設定のダウンロード / pull（`rex0220-print-craft-app<番号>-<日時>.json`。名前はそのまま。一番新しいものが今の設定）、直したもの（`…-edit.json`）、新しい帳票（その他の `*.json`。1 ファイル 1 帳票）
 - アプリのフォルダーを作れるのは `pcraft_fields`、`pcraft_pull`、`pcraft_take` だけ（中に印 `.pcraft-app.json` を置く。消さない・書かない）。`pcraft_record`、`pcraft_edit`、アプリのフォルダーへの保存は、フォルダーが無ければ先に `pcraft_fields`

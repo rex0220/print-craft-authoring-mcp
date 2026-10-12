@@ -1,0 +1,40 @@
+{
+  "record": {
+    "$id": {
+      "type": "__ID__",
+      "value": "2780"
+    },
+    "$revision": {
+      "type": "__REVISION__",
+      "value": "3"
+    },
+    "レコード番号": {
+      "type": "RECORD_NUMBER",
+      "value": "2780"
+    },
+    "project_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "試験プロジェクト PROJECT-SECRET"
+    },
+    "uuid": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "u-2780"
+    },
+    "record_type": {
+      "type": "DROP_DOWN",
+      "value": "project"
+    },
+    "manager_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "責任者 MANAGER-SECRET"
+    },
+    "task_list": {
+      "type": "REFERENCE_TABLE",
+      "value": null
+    },
+    "related_hidden": {
+      "type": "REFERENCE_TABLE",
+      "value": null
+    }
+  }
+}

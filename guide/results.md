@@ -34,6 +34,8 @@
 | `tags.filecode` | 保存先がテーブルの外の添付ファイル項目でない |
 | `menu.duplicate` | 有効なボタンの名前が重複している |
 | `field.unknown` | 項目定義に無い項目（ラベルで書いた、綴りの違い、別アプリの項目） |
+| `related.firstRow` / `related.listReport` / `related.write` | 関連レコード一覧（`親$子`。印刷屋 Ver.8）をボタン表示条件・更新条件（1 行目）、一覧用のボタン（一覧帳票）、`FSET` / `FSET_TADD` で使っている。使えない所なので式を直す（詳細画面の帳票の本文・計算項目だけ） |
+| `related.fields` | 関連レコード一覧を使っているのに、項目定義に参照先が無い（旧版の `fields.json` か、参照先の項目定義を取れなかった）。`pcraft_fields` で取り直す |
 | `formula.syntax` | 計算式を評価できない（メッセージを読む） |
 | `formula.comment` | 計算式の文字列の中に `//`（`"https://…"` など）。文字列の中でも `//` 以降を捨てる。URL は HTML の属性か `##目印##` に置く |
 | `calc.ineligible` / `calc.duplicate` | 更新できない項目（計算項目、ルックアップのコピー先、テーブルの中、更新できない型）、同じ項目が 2 回 |
@@ -50,6 +52,9 @@
 | `html.rawExpression` | `${式}` が文字列を `ESC_HTML` なしで差し込んでいる。新しく書いた式なら `${ESC_HTML(項目)}` に直す |
 | `formula.escape` | 計算式の文字列に `\n` など。`\` は解釈されないので改行にならない。`NEWLINE()` に直す |
 | `formula.rawHtml` | 生の HTML を入れる関数（`TABLE_HTML`、`FVAL` など）。想定どおりなら伝えるだけ |
+| `formula.backslashQuote` | 計算式の文字列の中の `\"`。`\` が残る（`class=\"x\"` は効かない）。HTML の属性は `'` で囲む |
+| `page.dpiMm` | CSS の幅・高さ・余白が mm で、用紙の DPI と合わない見込み。印刷屋のプレビューで確かめる |
+| `font.mobile` | Web フォントが無い（モバイルの詳細画面にはボタンが出ない。PC だけなら伝えるだけ） |
 | `formula.attr` / `formula.html` | 要素名・属性にレコードの値や式を入れている、計算式の文字列の HTML / CSS の危険な書き方 |
 | `preview.record` | 設定が使う項目が preview のレコードに無い（帳票では空になる）。`pcraft_record` に `fieldsFrom`（この設定）を付けて取り直す |
 | `preview.style` | HTML の行の `<style>` / style 属性に外へ読み込む書き方（`url()` など）があり、preview では外した（印刷屋の PDF では効く。帳票の CSS は行の `css` に書く） |

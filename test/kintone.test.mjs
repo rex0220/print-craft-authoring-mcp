@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { CONN, SKIP as skip, TOKENS, ZIP, connEnv, connectClaudeCode, connectDesktop, fetchLog, leakedTokens, makeConn, makeWorkspace, sc, settings, tokenHash } from "./helpers.mjs";
+import { CONN, ROOT, SKIP as skip, TOKENS, ZIP, connEnv, connectClaudeCode, connectDesktop, fetchLog, leakedTokens, makeConn, makeWorkspace, sc, settings, tokenHash } from "./helpers.mjs";
 
 const VALUES = ["□□□□株式会社", "S-0000003", "山田太郎", "月額費用", "kintone ワイドコース", "DESCRIPTION-SECRET", "SERVER-SECRET-MESSAGE"];
 const noValues = (s) => VALUES.filter((v) => s.includes(v));
@@ -313,6 +313,54 @@ test("Desktop の kintone_list_records: 5 件まで、形だけ（値は返さ�
     assert.ok(!tools.some((t) => t.name.startsWith("kintone_")), "Claude Code では公式の kintone MCP を使う（同じことをするツールを出さない）");
   } finally {
     await c.close();
+    conn.cleanup();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ---- 関連レコード一覧（印刷屋 Ver.8。実装案 17 章）。印刷屋 Ver.8 の zip（authoring API 3）が要る ----
+const ZIP8 = process.env.PCRAFT_TEST_PLUGIN_ZIP8 ?? path.resolve(ROOT, "../print-craft/dist/print-craft-plugin8.zip");
+const SKIP8 = skip || (!existsSync(ZIP8) && `印刷屋 Ver.8 の zip が無い: ${ZIP8}（PCRAFT_TEST_PLUGIN_ZIP8 で指定できる）`);
+const T4121 = "TEST-dev-4121-not-a-real-token";
+const T4200 = "TEST-dev-4200-not-a-real-token";
+const GANTT_DIR = "kintone/dev/4121-ガントチャート";
+
+test("関連レコード一覧（Ver.8）: pcraft_fields は参照先の項目定義を参照先のアプリのトークンで取って related に入れ、要約に 親$子 を出す（権限の無い参照は findings）。pcraft_record は fields.json に related があれば参照先のレコードを仮のテーブルとして取る。値を返さない", { skip: SKIP8 }, async () => {
+  const root = makeWorkspace();
+  const dev = CONN.profiles.dev;
+  const conn = makeConn({ ...CONN, profiles: { ...CONN.profiles, dev: { ...dev, tokenMap: { ...dev.tokenMap, APP4121: T4121, APP4200: T4200 } } } });
+  const log = fetchLog();
+  const s = await connectClaudeCode([root], connEnv(conn.file, { PCRAFT_PLUGIN_ZIP: ZIP8, PCRAFT_TEST_FETCH_LOG: log.file }), { mockFetch: true });
+  try {
+    const f = sc(await s.call("pcraft_fields", { workspaceId: root, app: 4121 }));
+    assert.equal(f.status, "ok", JSON.stringify(f));
+    assert.equal(f.result.path, `${GANTT_DIR}/fields.json`);
+    assert.deepEqual(f.result.related, { task_list: { app: 4200, appName: "タスク", fieldCount: 10 } }, "参照先の項目定義（取れたものだけ）");
+    assert.match(f.result.summary, /task_list\$task_name/, "要約に 親$子");
+    assert.ok(f.findings.some((x) => x.rule === "fields.related" && x.level === "warning" && x.message.startsWith("related_hidden: ")), `権限の無い参照は findings: ${JSON.stringify(f.findings)}`);
+    const saved = JSON.parse(readFileSync(path.join(root, GANTT_DIR, "fields.json"), "utf8"));
+    assert.deepEqual([saved.related.task_list.app, saved.relatedNotes.length], [4200, 1]);
+    const fieldsReqs = log.requests().filter((q) => q.path.endsWith("/app/form/fields.json"));
+    assert.deepEqual(fieldsReqs.map((q) => [q.query.app, q.token]), [["4121", tokenHash(T4121)], ["4200", tokenHash(T4200)]], "参照先の項目定義は参照先のアプリのトークンで");
+    // レコード: 参照先のレコードも印刷屋の zip の規則で取り、仮のテーブル task_list（子は task_list$…）として保存する
+    const r = sc(await s.call("pcraft_record", { workspaceId: root, app: 4121, id: 2780 }));
+    assert.equal(r.status, "ok", JSON.stringify(r));
+    assert.deepEqual(r.result.relatedTables, { task_list: { app: 4200, rows: 3, children: "all" } });
+    assert.match(r.result.shape, /関連レコード task_list 3 行/);
+    assert.match(r.result.shape, /task_list  SUBTABLE  3 行/);
+    const file = JSON.parse(readFileSync(path.join(root, GANTT_DIR, "records", "2780.json"), "utf8"));
+    assert.equal(file.relatedTables.task_list.rows, 3);
+    const row = file.record.task_list.value[0].value;
+    assert.ok(Object.keys(row).every((k) => k.startsWith("task_list$")), `仮のテーブルの子は task_list$…: ${Object.keys(row).join(",")}`);
+    assert.equal(row["task_list$task_name"].value, "要件定義 TASK-SECRET-1", "ファイルには参照先の値がある（preview の入力）");
+    const recReqs = log.requests().filter((q) => q.path.endsWith("/records.json"));
+    assert.ok(recReqs.length >= 1 && recReqs.every((q) => q.method === "GET" && q.query.app === "4200" && q.token === tokenHash(T4200)), JSON.stringify(recReqs));
+    assert.deepEqual(["TASK-SECRET", "PROJECT-SECRET", "MANAGER-SECRET"].filter((v) => JSON.stringify(r).includes(v) || JSON.stringify(f).includes(v)), [], "値を返さない");
+    assert.deepEqual(leakedTokens(s.output()), []);
+    assert.ok(!s.output().includes(T4121) && !s.output().includes(T4200));
+  } finally {
+    await s.close();
+    log.cleanup();
     conn.cleanup();
     rmSync(root, { recursive: true, force: true });
   }

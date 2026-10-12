@@ -139,7 +139,7 @@ test("MAJOR 1: zip の誤りを種類（code）ごとの決まった文で返す
     ["unsupported-version", makePluginZip(stubInnerEntries({ "manifest.json": JSON.stringify({ version: 5 }) })), { readable: true, compatible: false, pluginVersion: "5" }],
     ["not-print-craft", makePluginZip(stubInnerEntries(), { PUBKEY: Buffer.from("not the print-craft key") }), { readable: true, compatible: false, pluginVersion: "6" }],
     // 最後: スタブのコードを動かす（版の照合まで進む）。失敗するとそのサーバーでは以後 restart-required になるので、ほかの読み込みより後に
-    ["api-unsupported", makePluginZip(stubInnerEntries({ "config_js/print-craft-authoring-api.js": 'window.rex0220PrintCraftAuthoring = { apiVersion: 3, pluginVersion: "6" };' })), { readable: true, compatible: false, pluginVersion: "6", authoringApiVersion: 3 }]
+    ["api-unsupported", makePluginZip(stubInnerEntries({ "config_js/print-craft-authoring-api.js": 'window.rex0220PrintCraftAuthoring = { apiVersion: 99, pluginVersion: "6" };' })), { readable: true, compatible: false, pluginVersion: "6", authoringApiVersion: 99 }]
   ];
   const roots = cases.map(([code, data]) => {
     const root = makeWorkspace();

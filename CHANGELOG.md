@@ -2,6 +2,14 @@
 
 print-craft MCP（Claude Desktop の拡張機能「印刷屋 設定オーサリング（Print craft）」と、Claude Code のプラグイン `print-craft`）の、利用者に見える変更です。新しい版が上です。
 
+## 0.2.0（準備中）
+
+- 印刷屋プラグイン Ver.8 の関連レコード一覧に対応（中核を `@rex0220/print-craft-authoring-tools` 2.1.0 に。authoring API 3 の zip を扱う）
+  - `pcraft_fields`: 関連レコード一覧（REFERENCE_TABLE）の参照先の項目定義も、同じ profile のそのアプリのトークンで取り、要約に「親コード$参照先の項目コード」で出す。取れなかった関連レコード一覧は `findings`（`fields.related`）に理由
+  - `pcraft_record`: 項目定義に参照先があれば、参照先のレコードも印刷屋と同じ規則（条件・絞り込み・並び・1,000 件まで）で取り、仮のテーブルとして保存する（`fieldsFrom` の設定が使う項目だけ）。印刷屋の zip が要る
+  - `pcraft_normalize` / `pcraft_preview`: 関連レコード一覧を使う計算式の検査（ボタン表示条件・更新条件・一覧用のボタンでは使えない、`FSET` で書けない、項目定義に参照先が無い）と、情報（`page.dpiMm`、`formula.backslashQuote`、`font.mobile`）
+- 資料（`pcraft_docs`）を tools 2.1.0 のものに（帳票レシピ集の工程表の作り方と「つまずきと切り分け」、設定ファイル仕様の関連レコード一覧）
+
 ## 0.1.5（2026-10-10）
 
 初めての公開の版。

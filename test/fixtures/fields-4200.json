@@ -1,0 +1,137 @@
+{
+  "properties": {
+    "task_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "task_name",
+      "label": "タスク名",
+      "noLabel": false,
+      "required": false
+    },
+    "project_id": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "project_id",
+      "label": "プロジェクトID",
+      "noLabel": false,
+      "required": false
+    },
+    "assignee_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "assignee_name",
+      "label": "担当者",
+      "noLabel": false,
+      "required": false
+    },
+    "start_date": {
+      "type": "DATE",
+      "code": "start_date",
+      "label": "開始日",
+      "noLabel": false,
+      "required": false
+    },
+    "end_date": {
+      "type": "DATE",
+      "code": "end_date",
+      "label": "終了日",
+      "noLabel": false,
+      "required": false
+    },
+    "progress": {
+      "type": "NUMBER",
+      "code": "progress",
+      "label": "進捗",
+      "noLabel": false,
+      "required": false
+    },
+    "task_delete": {
+      "type": "CHECK_BOX",
+      "code": "task_delete",
+      "label": "削除",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "ON": {
+          "label": "ON",
+          "index": "0"
+        }
+      }
+    },
+    "display_order": {
+      "type": "NUMBER",
+      "code": "display_order",
+      "label": "表示順",
+      "noLabel": false,
+      "required": false
+    },
+    "memo": {
+      "type": "MULTI_LINE_TEXT",
+      "code": "memo",
+      "label": "メモ",
+      "noLabel": false,
+      "required": false
+    },
+    "レコード番号": {
+      "type": "RECORD_NUMBER",
+      "code": "レコード番号",
+      "label": "レコード番号",
+      "noLabel": false,
+      "required": false
+    }
+  },
+  "layout": [
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "task_name"
+        },
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "project_id"
+        },
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "assignee_name"
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "DATE",
+          "code": "start_date"
+        },
+        {
+          "type": "DATE",
+          "code": "end_date"
+        },
+        {
+          "type": "NUMBER",
+          "code": "progress"
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "CHECK_BOX",
+          "code": "task_delete"
+        },
+        {
+          "type": "NUMBER",
+          "code": "display_order"
+        },
+        {
+          "type": "MULTI_LINE_TEXT",
+          "code": "memo"
+        },
+        {
+          "type": "RECORD_NUMBER",
+          "code": "レコード番号"
+        }
+      ]
+    }
+  ]
+}
