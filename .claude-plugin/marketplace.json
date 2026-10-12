@@ -23,8 +23,8 @@
       ],
       "source": {
         "source": "archive",
-        "url": "https://github.com/rex0220/print-craft-authoring-mcp/releases/download/v0.1.5/print-craft-plugin-0.1.5.zip",
-        "sha256": "6a02fa3ed08432d15be104980da81d8b8226706ae1f548202df29b729ccaee2b"
+        "url": "https://github.com/rex0220/print-craft-authoring-mcp/releases/download/v0.2.0/print-craft-plugin-0.2.0.zip",
+        "sha256": "315fcf658f82c750b0b0e6a2fe32d07e323b80a9e4973e7c179c45fbec0cbb7d"
       }
     }
   ]
