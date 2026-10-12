@@ -2,7 +2,7 @@
 
 print-craft MCP（Claude Desktop の拡張機能「印刷屋 設定オーサリング（Print craft）」と、Claude Code のプラグイン `print-craft`）の、利用者に見える変更です。新しい版が上です。
 
-## 0.2.0（準備中）
+## 0.2.0（2026-10-12）
 
 - 印刷屋プラグイン Ver.8 の関連レコード一覧に対応（中核を `@rex0220/print-craft-authoring-tools` 2.1.0 に。authoring API 3 の zip を扱う）
   - `pcraft_fields`: 関連レコード一覧（REFERENCE_TABLE）の参照先の項目定義も、同じ profile のそのアプリのトークンで取り、要約に「親コード$参照先の項目コード」で出す。取れなかった関連レコード一覧は `findings`（`fields.related`）に理由
