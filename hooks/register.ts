@@ -14,7 +14,7 @@ type $ = EngineInterface
  * ほかのサーバーの同じ名前のツール（Desktop の Cowork で拡張機能 .mcpb の print-craft が一緒に見えるとき。作業フォルダーは拡張機能の設定で決まり、フックは要らない）は捕まえない
  * （0.2.0 までは mcp__.+__ で捕まえていた。formula MCP 0.2.4 と同じ直し。0.2.1）
  */
-const WORKSPACE_TOOL = /^mcp__plugin_print-craft_print-craft__pcraft_(save_settings|workspace_status|update_button|normalize|preview|buttons|fields|record|pull|files|take|edit|diff)$/
+const WORKSPACE_TOOL = /^mcp__plugin_print-craft_print-craft__pcraft_(save_settings|workspace_status|update_button|normalize|preview|try|buttons|fields|record|pull|files|take|edit|diff)$/
 
 /**
  * 登録した後の案内。設定（/config）を変えてもプラグインの MCP サーバーは起動し直さず、/mcp の再接続か

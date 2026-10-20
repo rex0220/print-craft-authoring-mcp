@@ -15,3 +15,4 @@ Thumbs.db
 # Claude Code がプラグインを読み込むときに置く型のファイル（--plugin-dir）
 .claude-plugin/types/
 .tmp/
+evals/results/

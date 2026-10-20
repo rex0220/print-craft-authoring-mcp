@@ -6,6 +6,7 @@
 2. **構成を見る** — `pcraft_buttons` でボタンの一覧と `digest`。直すボタンの中身は `button` を付けて見る。設定ファイルそのものは読まない・表示しない（data: の URL などで大きい。ボタンの一覧と中身で足りる）
 3. **項目定義が古くないか** — `pcraft_normalize` に `check: true` で、入力の派生値と生成した値が一致するか確かめる（一致しなければ項目定義が古い。`pcraft_fields` で取り直す）
 4. **直す** — `pcraft_update_button` に、`pcraft_buttons` が返した `digest` と、ボタン 1 つ（`pluginInfos` の 1 行）の JSON を渡す。`menu` は直すボタンの名前と同じにする（無い名前なら末尾に足す）。ボタンの JSON の形（キー）は雛形（`sample-quote`）で見る。派生値は書かない
+   - 頼まれていなければ、既存のボタンの `list`（一覧帳票か詳細画面か）と `viewsCsv`（ボタンを出す一覧）を変えない（`pcraft_buttons` で見た値のまま渡す。変わると警告 `button.listChanged` / `button.viewsChanged`）
    - `conflict`（digest が違う）なら、読んだ後にファイルが変わっている。`pcraft_buttons` で読み直す
 5. **preview** — `pcraft_preview`（`button` でそのボタンだけ）。利用者に Chrome で開いてもらう。差は `pcraft_diff`（ダウンロードと `-edit.json`）で利用者に見せる
 6. **反映方法を伝える** — `deploy`（既存のボタンの差し替えは「一部置換」）

@@ -42,7 +42,7 @@ export function registerUpdateButton(server: McpServer, ctx: ServerContext): voi
           if (isToolResult(w)) return w;
           const origin = trustedOrigin(w.mode, w.root, path.resolve(w.root, input.path), input.profile);
           const r = await updateButton(
-            { root: w.root, engine: w.engine, policy: w.policy, baseUrl: origin.baseUrl, mode: w.mode },
+            { root: w.root, evaluator: w.evaluator, policy: w.policy, baseUrl: origin.baseUrl, mode: w.mode },
             { path: input.path, button: input.button, expectedDigest: input.expectedDigest, replacement: input.replacement, fields: input.fields }
           );
           return fromSaveResult(r, originFields(origin));

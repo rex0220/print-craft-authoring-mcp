@@ -3,14 +3,18 @@
 //   ref:   references/template/（テンプレートの docs/ の写し。scripts/sync-references.mjs）
 // 順番が目次の順。キーは英数字（AI が打ち間違えにくく、Desktop のツールの引数でも崩れない）
 export const DOC_SECTIONS = [
+  { key: "navi", title: "使い方ナビ（できること = 帳票の種類、使い方の流れ、頼み方の例、今の帳票の変え方。利用者に聞かれたら）", ref: "docs/使い方ナビ.md" },
   { key: "howto-new", title: "新しい設定を作る（手順）", guide: "howto-new.md" },
   { key: "howto-edit", title: "既存の設定を変える（ボタンの追加・修正）", guide: "howto-edit.md" },
+  { key: "try", title: "式と帳票の試し（お試しアプリ。pcraft_try。使う場面の決まり）", guide: "try.md" },
   { key: "results", title: "結果の読み方（status、normalize のエラー・警告、断る場合）", guide: "results.md" },
   { key: "constraints", title: "制約（守らないと動かない・壊れる）", guide: "constraints.md" },
   { key: "usable", title: "使えるもの（関数・CSS の class・置き換えタグ）", guide: "usable.md" },
   { key: "deploy", title: "反映方法（設定画面でアップロード）", guide: "deploy.md" },
   { key: "connections", title: "kintone の接続とアプリのフォルダー（接続のファイル。profile、kintone/<profile>/<番号>-<アプリ名>/）", guide: "connections.md" },
   { key: "recipes", title: "帳票レシピ集（0 章が既定の形。R1 見積書 … R7 Web フォント）", ref: "docs/帳票レシピ集.md" },
+  { key: "patterns", title: "計算パターン（和暦・曜日・支払期限・年度、文字列、空・比較・端数、大きい帳票の式。✔ はお試しアプリで確かめた例）", ref: "docs/計算パターン.md" },
+  { key: "patterns-verified", title: "計算パターンの検証の結果（式ごとの結果）", ref: "docs/計算パターン_検証.md" },
   { key: "report-functions", title: "印刷屋の関数・置き換えタグ・エスケープ", ref: "docs/帳票関数リファレンス.md" },
   { key: "spec", title: "設定ファイル仕様（キーの意味・列挙・上限）", ref: "docs/設定ファイル仕様.md" },
   { key: "field-types", title: "項目の型ごとの値の形（計算式）", ref: "docs/フィールドタイプ別仕様.md" },

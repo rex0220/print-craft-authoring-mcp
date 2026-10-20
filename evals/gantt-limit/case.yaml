@@ -1,0 +1,26 @@
+schema_version: "1.1"
+name: gantt-limit
+description: 関連レコード一覧のレコードが 1,001 件のとき、印刷屋と同じく帳票を作らないことをお試しで確かめて説明する（お試しアプリ gantt の rows 1001）
+tags: [try, related]
+runs: 1
+execution:
+  prompt: |
+    工程表の帳票で、関連レコード一覧のタスクが 1,001 件あるプロジェクトだと、帳票はどうなりますか？お試しで確かめてください。
+  max_turns: 20
+  timeout_seconds: 600
+graders:
+  - name: try-1001
+    type: tool_used
+    tool: mcp__plugin_print-craft_print-craft__pcraft_try
+    input_match: '"rows":1001'
+  - name: refused
+    type: regex
+    target: trace
+    pattern: '\\"code\\":\\"related\.tooMany\\"'
+  - name: answer
+    type: llm
+    criteria: |
+      最後の答えを見る。
+      PASS: 次をすべて満たす。(1) 説明の文は日本語で、英語だけの文が混ざっていない（式・関数名・変数名・コード・ファイル名は英字でよい）。(2) 関連レコード一覧のレコードが 1,000 件を超えると印刷屋は帳票を作らない（上限は 1,000 件）と説明している。
+      (3) お試しで確かめた結果だと伝えている。
+      FAIL: どれかが欠けている。または、1,001 件でも帳票が作られると言っている。

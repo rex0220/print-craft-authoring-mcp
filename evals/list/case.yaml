@@ -1,0 +1,31 @@
+schema_version: "1.1"
+name: list
+description: 一覧帳票（一覧画面のレコードを表に）の形をお試しアプリ list の count で試し、件数とページ数を伝える
+tags: [try, report, list]
+runs: 1
+execution:
+  prompt: |
+    案件管理の一覧画面から、顧客名・案件名・確度・合計費用の一覧表を PDF にする一覧帳票を作りたいです。
+    kintone のアプリはまだ無いので、25 件のときにどんな表で何ページになるか、まず試して見せてください。
+  max_turns: 25
+  timeout_seconds: 600
+graders:
+  - name: try-list
+    type: tool_used
+    tool: mcp__plugin_print-craft_print-craft__pcraft_try
+    input_match: '"count":25'
+  - name: list-button
+    type: tool_used
+    tool: mcp__plugin_print-craft_print-craft__pcraft_try
+    input_match: '"list":true'
+  - name: report-written
+    type: regex
+    target: { source: file, path: out/try/list-list.html }
+    pattern: '顧客名 1'
+  - name: answer
+    type: llm
+    criteria: |
+      最後の答えを見る。
+      PASS: 次をすべて満たす。(1) 説明の文は日本語で、英語だけの文が混ざっていない（式・関数名・変数名・コード・ファイル名は英字でよい）。(2) 25 件でのページ数を示している。(3) 値はお試しアプリの架空の値だと伝えている。
+      (4) 一覧帳票は一覧画面に表示しているレコードを使う、または 1 ページに収まるかは印刷屋の PDF で確かめる、のどちらかに触れている。
+      FAIL: どれかが欠けている。

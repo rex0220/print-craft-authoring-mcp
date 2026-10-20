@@ -2,9 +2,17 @@
  * サーバーの文脈: 出し分け（--surface）、作業フォルダーの結び付け、設定項目の値（環境変数）、印刷屋のエンジン、ツールを 1 つずつ動かす仕組み。
  * 設定項目の値は起動時に一度だけ受け取り、中核に引数で渡す（中核は process.env を読まない）
  */
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { expandHome, isUnset, type Surface, type WorkspaceBinding } from "./binding.ts";
 import { quietly } from "./console-gate.ts";
-import { loadEngine, modeOf, pluginZipPath, unquote, type Engine, type WorkspaceMode } from "./core.ts";
+import { evalLimitsFromEnv, loadEngine, modeOf, pluginZipPath, unquote, type Engine, type Evaluator, type WorkspaceMode } from "./core.ts";
+
+/**
+ * 評価の子プロセスの入口（束ねた本体 dist/server/print-craft-mcp.cjs の隣の eval-worker.cjs。build-mcp.mjs が中核の dist/eval-worker.mjs を束ねる。
+ * print-craft の docs/authoring-try-plan.md 4.6）
+ */
+export const EVAL_WORKER_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), "eval-worker.cjs");
 
 export type Env = Readonly<Record<string, string | undefined>>;
 
@@ -20,6 +28,11 @@ export interface ServerContext {
    * 変わった zip を渡すと、中核が PluginZipError（zip-changed）で止める（前はここで最初のエンジンを返していた。Codex の B1 再レビュー MAJOR 2、3 回目 MAJOR 1）
    */
   engine(zip: string): Promise<Engine>;
+  /**
+   * zip の式を評価する口（子プロセス。時間とメモリの上限。tools 2.3.0、計画 4.6）。normalize・保存の検査はこれを通す（親のエンジンで評価しない）。
+   * 子プロセスに渡す環境変数は設定項目の値のうち動くのに要るもの（TZ など）だけ（中核の childEnv）
+   */
+  evaluator(zip: string): Evaluator;
   /** 中核のエンジンを使うツールは 1 つずつ動かす（エンジンは 1 つで setContext を挟むので重ねない）。動かしている間の console の出力は捨てる */
   serial<T>(fn: () => Promise<T>): Promise<T>;
   /** kintone の接続のファイル（設定項目 kintoneConfig = PCRAFT_KINTONE_CONFIG。~ を展開し両端の引用符を外したもの。無ければ undefined） */
@@ -55,6 +68,10 @@ export function createServerContext(surface: Surface, binding: WorkspaceBinding,
     },
     engine(zip) {
       return quietly(() => loadEngine({ pluginZip: zip }));
+    },
+    evaluator(zip) {
+      // 上限は既定（60 秒、4,096 MiB）。環境変数 PCRAFT_EVAL_TIMEOUT_SEC / PCRAFT_EVAL_HEAP_MB で変えられる（設定項目には出さない。重い帳票と試験のため）
+      return { pluginZip: zip, run: { workerFile: EVAL_WORKER_FILE, env: clean, ...evalLimitsFromEnv(clean) } };
     },
     serial(fn) {
       const quiet = () => quietly(fn);

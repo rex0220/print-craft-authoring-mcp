@@ -5,7 +5,7 @@
 import { z } from "zod";
 import { WorkspaceError, type Surface } from "../binding.ts";
 import { buildProblem, zipProblem } from "../compat.ts";
-import { PluginZipError, loadPolicy, type Engine, type Policy, type SaveResult, type WorkspaceMode } from "../core.ts";
+import { PluginZipError, loadPolicy, type Engine, type Evaluator, type Policy, type SaveResult, type WorkspaceMode } from "../core.ts";
 import { zipGuide, zipOf, type ServerContext } from "../context.ts";
 import { failure, ok, type Finding, type ToolResult } from "../result.ts";
 import { describeZipError } from "../zip-error.ts";
@@ -17,10 +17,17 @@ export function workspaceIdSchema(surface: Surface) {
     : z.string().min(1).max(4096).optional().describe("作業フォルダー（省略してよい。設定の作業フォルダーを使う）");
 }
 
-/** 作業フォルダーを使うツールの文脈（作業フォルダーの実際のパス、エンジン、policy、動く形） */
+/**
+ * 作業フォルダーを使うツールの文脈（作業フォルダーの実際のパス、評価の口、親のエンジンの一部、policy、動く形）。
+ * zip の式の評価は evaluator（子プロセス）だけ。親のエンジンは互換の確かめと API（書き出しの形、関連レコード一覧の項目の名前）に使い、
+ * checker / runner は持たせない（print-craft の docs/authoring-try-plan.md 4.6、Codex r2 M5）
+ */
 export interface WorkContextForTool {
   root: string;
-  engine: Engine;
+  /** zip の式を評価する口（子プロセス） */
+  evaluator: Evaluator;
+  /** 親のエンジンの一部（版、API。式は評価しない） */
+  parent: Pick<Engine, "api" | "source" | "warnings">;
   policy: Policy;
   /** 呼び出しの初めに 1 回読んだ動く形（接続のファイル。実装案 15.4、15.6） */
   mode: WorkspaceMode;
@@ -56,7 +63,7 @@ export async function prepare(ctx: ServerContext, workspaceId: string | undefine
   const zp = zipProblem(engine);
   if (zp) return failure("incompatible", "IncompatibleError", zp);
   const policy = loadPolicy({ cwd: root });
-  return { root, engine, policy, mode: ctx.mode(root) };
+  return { root, evaluator: ctx.evaluator(zip.zip), parent: { api: engine.api, source: engine.source, warnings: engine.warnings }, policy, mode: ctx.mode(root) };
 }
 
 /** 互換表とビルドの組み合わせが合わなければ incompatible（作業フォルダーを使うツールだけが使う。7 章） */
@@ -69,6 +76,14 @@ export function incompatibleResult(): ToolResult | undefined {
 export function lazyMode(ctx: ServerContext, root: string): () => WorkspaceMode {
   let m: WorkspaceMode | undefined;
   return () => (m ??= ctx.mode(root));
+}
+
+/**
+ * 評価の子プロセス（Worker thread）の console の出力を捨てたことだけをログに残す（中身は値を含みうるので出さない。0.3.0。親の console は console-gate.ts が数える）
+ */
+export function logDiscardedOutput(ctx: ServerContext, diag: { stdoutChars: number; stderrChars: number }): void {
+  const n = diag.stdoutChars + diag.stderrChars;
+  if (n > 0) ctx.log(`評価の子プロセスの console の出力を ${n} 文字捨てた（中身は出さない）`);
 }
 
 export const isToolResult = (v: unknown): v is ToolResult => typeof v === "object" && v !== null && "content" in v && "isError" in v;

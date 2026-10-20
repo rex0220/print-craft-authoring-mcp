@@ -44,7 +44,8 @@ test("BLOCKER 1: $fname の評価の失敗（印刷屋の console.log）と mome
   try {
     assert.ok(!s.output().includes(VALUE), "レコードの値を応答にも標準エラーにも出さない");
     assert.ok(!/file name err|Deprecation warning|_isAMomentObject/.test(s.stderr()), "印刷屋と moment のログを出さない");
-    assert.match(s.stderr(), /console の出力を \d+ 件捨てた/, "捨てた件数だけを残す");
+    // 0.3.0 から評価は子プロセス（Worker thread）で、捨てたのは子プロセスの出力の文字数
+    assert.match(s.stderr(), /console の出力を \d+ (件|文字)捨てた/, "捨てた件数だけを残す");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
