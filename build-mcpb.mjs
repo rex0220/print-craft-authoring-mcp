@@ -31,6 +31,7 @@ export const MANIFEST_TOOLS = [
   ["pcraft_buttons", "設定のボタンの一覧と中身"],
   ["pcraft_normalize", "設定の検査（書き換えない）"],
   ["pcraft_preview", "帳票の試し出力（out/）"],
+  ["pcraft_try", "お試しアプリ（架空の値）で式と帳票を試す（out/try/）"],
   ["pcraft_fields", "kintone の項目定義を取る"],
   ["pcraft_record", "kintone のレコードを取る（形だけ返す）"],
   ["pcraft_pull", "アプリの今の印刷屋の設定を取る"],

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "runtimeChecks": {
-    "mcpVersion": "0.3.0-dev.3",
+    "mcpVersion": "0.3.0-dev.4",
     "coreVersion": ">=2.2.0 <3.0.0",
     "coreApiVersion": 2,
     "docsRevision": "d37b918",

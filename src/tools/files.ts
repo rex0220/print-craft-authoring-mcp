@@ -7,7 +7,7 @@
  *   - 書く直前に、書ける場所と、kintone/ の下なら操作 × 場所・印・接続の許可（接続のファイルを読み直す）を確かめ直す
  */
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { WorkspaceError as BindingError } from "../binding.ts";
 import {
@@ -237,6 +237,35 @@ export function writeChecked(root: string, target: string, text: string, roots: 
   assertChangeAllowed(root, real, op, mode);
   writeFileSync(real, text, "utf8");
   return real;
+}
+
+/**
+ * 書く（お試しアプリの out/try/。0.3.0。print-craft の docs/authoring-try-plan.md 4.2、Codex r2 M4）: 同じフォルダーの一時ファイルに書き、書く先を検査し直してから
+ * rename で置き換える（別の MCP のプロセスや CLI と同時でも、最後の 1 つが壊れていない HTML として残る）
+ */
+export function writeAtomicChecked(root: string, target: string, text: string, roots: readonly string[], op: ChangeOp, mode: WorkspaceMode): string {
+  const real = checkWritable(root, target, roots, op, mode);
+  mkdirSync(path.dirname(real), { recursive: true });
+  const tmp = `${real}.${process.pid}.${Date.now().toString(36)}.tmp`;
+  writeFileSync(tmp, text, "utf8");
+  try {
+    if (resolveWrite(rel(root, real), roots, root) !== real) throw new PermissionError(`書く先のフォルダーが途中で変わった（symlink など）: ${rel(root, real)}`);
+    assertChangeAllowed(root, real, op, mode);
+    renameSync(tmp, real);
+  } catch (e) {
+    rmSync(tmp, { force: true });
+    throw e;
+  }
+  return real;
+}
+
+/** 前の結果のファイルを消す（お試しアプリで描けなかった対象。書く先と同じ検査）。消したら true */
+export function removeChecked(root: string, target: string, roots: readonly string[], op: ChangeOp, mode: WorkspaceMode): boolean {
+  const real = checkWritable(root, target, roots, op, mode);
+  if (!existsSync(real)) return false;
+  assertChangeAllowed(root, real, op, mode);
+  rmSync(real, { force: true });
+  return true;
 }
 
 /** 中核の誤りを応答に分ける（5.2）。分からない誤りは failed */

@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { FIELDS_TEXT, SECRET, SKIP as skip, VERSION, ZIP, connEnv, connect, connectClaudeCode, connectDesktop, leakedTokens, makeConn, makeWorkspace, saveInput, sc, settings } from "./helpers.mjs";
 
-const TOOLS = ["pcraft_docs", "pcraft_status", "pcraft_workspace_status", "pcraft_save_settings", "pcraft_update_button", "pcraft_buttons", "pcraft_normalize", "pcraft_preview", "pcraft_fields", "pcraft_record", "pcraft_pull", "pcraft_files", "pcraft_take", "pcraft_edit", "pcraft_diff"];
+const TOOLS = ["pcraft_docs", "pcraft_status", "pcraft_workspace_status", "pcraft_save_settings", "pcraft_update_button", "pcraft_buttons", "pcraft_normalize", "pcraft_preview", "pcraft_try", "pcraft_fields", "pcraft_record", "pcraft_pull", "pcraft_files", "pcraft_take", "pcraft_edit", "pcraft_diff"];
 
 test("ツールの一覧と入力の厳しいスキーマ（additionalProperties: false。Claude Code では workspaceId が必須）。指示の 1 行目に版。pcraft_status の capabilities", { skip }, async () => {
   const root = makeWorkspace();

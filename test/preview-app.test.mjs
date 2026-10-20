@@ -39,7 +39,8 @@ test("Desktop: pcraft_preview は _meta.ui.resourceUri で表示の殻を指す�
     const preview = tools.find((t) => t.name === "pcraft_preview");
     assert.equal(preview._meta?.ui?.resourceUri, PREVIEW_UI_URI);
     assert.equal(preview._meta?.["ui/resourceUri"], PREVIEW_UI_URI, "古いホスト向けの形も");
-    assert.ok(tools.filter((t) => t.name !== "pcraft_preview").every((t) => !t._meta?.ui), "ほかのツールには付けない");
+    assert.ok(tools.find((t) => t.name === "pcraft_try")?._meta?.ui?.resourceUri === PREVIEW_UI_URI, "お試しアプリ（pcraft_try）の帳票も同じ表示の殻（0.3.0）");
+    assert.ok(tools.filter((t) => t.name !== "pcraft_preview" && t.name !== "pcraft_try").every((t) => !t._meta?.ui), "ほかのツールには付けない");
     const { resources } = await s.client.listResources();
     const listed = resources.find((r) => r.uri === PREVIEW_UI_URI);
     assert.equal(listed?.mimeType, "text/html;profile=mcp-app");
