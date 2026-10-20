@@ -1,0 +1,4 @@
+{
+  "note": "印刷屋の設定画面の取り込み方の名前（print-craft の src/config/messages.ts の importModeAll / importModeReplace / importModeAdd。Ver.9）。締めの文はこの言葉のまま書く（0.2.1）",
+  "ja": ["全置換", "一部置換", "追加"]
+}
