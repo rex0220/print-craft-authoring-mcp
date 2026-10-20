@@ -3,6 +3,7 @@
 //   ref:   references/template/（テンプレートの docs/ の写し。scripts/sync-references.mjs）
 // 順番が目次の順。キーは英数字（AI が打ち間違えにくく、Desktop のツールの引数でも崩れない）
 export const DOC_SECTIONS = [
+  { key: "navi", title: "使い方ナビ（できること = 帳票の種類、使い方の流れ、頼み方の例、今の帳票の変え方。利用者に聞かれたら）", ref: "docs/使い方ナビ.md" },
   { key: "howto-new", title: "新しい設定を作る（手順）", guide: "howto-new.md" },
   { key: "howto-edit", title: "既存の設定を変える（ボタンの追加・修正）", guide: "howto-edit.md" },
   { key: "try", title: "式と帳票の試し（お試しアプリ。pcraft_try。使う場面の決まり）", guide: "try.md" },

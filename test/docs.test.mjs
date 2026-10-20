@@ -7,7 +7,7 @@ import path from "node:path";
 import { ROOT, VERSION, connect, connectClaudeCode } from "./helpers.mjs";
 
 const SOURCE = JSON.parse(readFileSync(path.join(ROOT, "references", "template", "SOURCE.json"), "utf8"));
-const KEYS = ["howto-new", "howto-edit", "try", "results", "constraints", "usable", "deploy", "connections", "recipes", "patterns", "patterns-verified", "report-functions", "spec", "field-types", "function-list", "function-detail", "function-articles", "css-defaults", "sample-quote", "sample-list"];
+const KEYS = ["navi", "howto-new", "howto-edit", "try", "results", "constraints", "usable", "deploy", "connections", "recipes", "patterns", "patterns-verified", "report-functions", "spec", "field-types", "function-list", "function-detail", "function-articles", "css-defaults", "sample-quote", "sample-list"];
 const textOf = (r) => r.content.map((c) => c.text).join("\n");
 
 test("目次: 1 行目に版、資料の元のコミット、作業の順と決まり（推し量らない）、章の一覧。作業フォルダーが未登録・zip が未設定でも読める。文章だけ", async () => {
@@ -111,6 +111,22 @@ test("締めの文: サーバーの指示と目次に同じ決まり（設定画
     for (const w of IMPORT_MODES.ja) assert.ok(deploy.includes(`「${w}」`), w);
     assert.match(deploy, /言い換えない/);
     assert.match(deploy, /両方の場合を書く/);
+  } finally {
+    await s.close();
+  }
+});
+
+// 使い方ナビ（0.3.0）: 指示と目次とツールの説明に、使い方・できること・頼み方を聞かれたら navi で答える決まり。章に帳票の種類と、今の帳票の変え方
+test("使い方ナビ: 指示・目次・pcraft_docs の説明に navi の決まり。章に帳票の種類、頼み方の例、今の帳票を変える流れ（一部置換）", async () => {
+  const s = await connectClaudeCode([], {});
+  try {
+    const instructions = String(s.client.getInstructions?.() ?? s.client.getDiscoverResult?.()?.instructions);
+    const index = textOf(await s.call("pcraft_docs", {}));
+    const { tools } = await s.client.listTools();
+    const description = tools.find((t) => t.name === "pcraft_docs").description;
+    for (const t of [instructions, index, description]) assert.match(t, /使い方・できること（帳票の種類）・頼み方・今の帳票の変え方を聞かれたら/);
+    const navi = textOf(await s.call("pcraft_docs", { section: "navi" }));
+    for (const w of ["見積書・注文書・請求書・納品書", "一覧表（一覧帳票）", "工程表", "## 3. 頼み方（新しい帳票）", "## 4. 今の帳票を変える", "一部置換", "qiita.com/rex0220/items"]) assert.ok(navi.includes(w), w);
   } finally {
     await s.close();
   }

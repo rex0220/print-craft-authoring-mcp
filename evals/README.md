@@ -15,7 +15,7 @@ claude plugin eval .tmp/eval-plugin --runs 1 --ablation none --mocks off \
 - `build-eval-plugin.mjs` が `.tmp/eval-plugin/` に eval 専用の写しを作る（コミットしない）。中身は公開のプラグインと同じで、eval の実行の一時フォルダーを作業フォルダーにするための 2 つだけが違う（eval の実行は一時の設定で動き、プラグインの設定項目が空。作業フォルダーの登録の確認の画面にも答えられない）: サーバーは起動のファイル `eval-launch.cjs`（作業フォルダー = サーバーの作業フォルダー）、フックは登録済みの作業フォルダーの代わりにセッションのフォルダー。印刷屋の zip は `PCRAFT_EVAL_PLUGIN_ZIP`（既定 `../print-craft/dist/print-craft-plugin9.zip`）
 - 1 つのケースだけ: `--case quote`（`--case` は 1 つ。複数なら `--tag`）。様子を見るなら `--keep-temp`（実行の記録 trace.jsonl が残る）
 - `--scaffold` は `edit-existing` が作業フォルダーに fixture を置くのに要る（このリポジトリのケースだけで使う）
-- 費用は実行ごとにかかる（利用者の利用枠）。1 回ずつで 5 ケース 1〜2 ドル、1〜2 分（2026-10-20）
+- 費用は実行ごとにかかる（利用者の利用枠）。1 回ずつで 7 ケース 1.5 ドルほど、2 分ほど（2026-10-20）
 - 結果は `.tmp/eval-plugin/evals/results/<日時>/`（HTML の報告と JSON）。`--no-publish` で claude.ai に上げない
 
 ## ケース
@@ -28,5 +28,6 @@ claude plugin eval .tmp/eval-plugin --runs 1 --ablation none --mocks off \
 | `list` | 一覧帳票（list、count 25）。帳票に架空の値 |
 | `gantt-limit` | 関連レコード一覧 1,001 件は作らない（`related.tooMany`）と説明する |
 | `edit-existing` | 既存の設定のボタンの見積日を和暦に。`pcraft_buttons` → `pcraft_update_button`、`list` / `viewsCsv` を変えない（警告が出ない）、反映方法を設定画面の言葉で |
+| `navi` | 「何が作れる？」「今の帳票を直したいときは？」に、資料の navi（使い方ナビ）で帳票の種類・頼み方の例・今の帳票を変える流れ（一部置換）を答える。保存しない |
 
 採点の書き方: trace（実行の記録。1 行 1 つの JSON）を正規表現で見るときは、ツールが返した JSON の中のキー（`\"text\":`、`\"code\":`、`\"rule\":`）に合わせる（資料の文に同じ言葉があっても合わないように）。最後の答えは AI の採点者（`type: llm`）で、言語の決まりは「説明の文は日本語（式・関数名・変数名は英字でよい）」と書く。

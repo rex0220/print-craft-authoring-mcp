@@ -48,6 +48,7 @@ export function indexText(): string {
     "印刷屋プラグイン（rex0220 Print craft）の帳票（見積書・請求書・納品書・一覧表などの PDF）のボタンの設定 JSON を、検査（normalize）を通して作業フォルダーに保存する。利用者は印刷屋の設定画面でアップロードして反映する。",
     "",
     "作業の順:",
+    "- 使い方の案内: 利用者に使い方・できること（帳票の種類）・頼み方・今の帳票の変え方を聞かれたら、pcraft_docs の navi で答える（帳票の種類の一覧、依頼の文の例、記事）",
     "- 新しい設定: pcraft_status → アプリの番号（利用者に聞く）→ pcraft_fields（アプリのフォルダー kintone/<profile>/<番号>-<アプリ名>/ ができる）→ 代表のレコードを pcraft_record → 帳票を書く（recipes の 0 章、sample-quote）→ pcraft_save_settings（アプリのフォルダーに）→ pcraft_preview → 反映方法（deploy）。詳しくは howto-new",
     "- 既存の設定を直す: pcraft_pull か、設定のダウンロードを inbox/ に置いてもらい pcraft_take → pcraft_edit（-edit.json に写す）→ pcraft_buttons → pcraft_normalize（check: true）→ pcraft_update_button → pcraft_preview → pcraft_diff。詳しくは howto-edit",
     "",

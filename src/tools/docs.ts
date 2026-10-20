@@ -17,7 +17,7 @@ export function registerDocs(server: McpServer, _ctx: ServerContext): void {
       title: "印刷屋の帳票づくりの手順と資料",
       description:
         "kintone の印刷屋プラグイン（rex0220 Print craft）で帳票（見積書・請求書・納品書・一覧表などの PDF）のボタン・設定を作る・直すとき、最初に呼ぶ。手順と資料（読み取りだけ）。" +
-        "引数なしで目次（作業の順・決まり・章の一覧）、section でその章、query で資料から探す（関数名など。大きい資料は全部を読まない）。「印刷屋の設定」「帳票を作りたい」と言われたらまずこれ",
+        "引数なしで目次（作業の順・決まり・章の一覧）、section でその章、query で資料から探す（関数名など。大きい資料は全部を読まない）。「印刷屋の設定」「帳票を作りたい」と言われたらまずこれ。使い方・できること（帳票の種類）・頼み方・今の帳票の変え方を聞かれたら section navi",
       inputSchema: z
         .object({
           section: z.string().min(1).max(60).optional().describe("章の名前（目次の section。例 howto-new、recipes、function-detail）"),

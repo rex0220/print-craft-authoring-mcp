@@ -1,0 +1,30 @@
+schema_version: "1.1"
+name: navi
+description: 利用者に「何が作れる？」「今の帳票を直したいときはどう頼む？」と聞かれたら、資料の navi（使い方ナビ）で、帳票の種類と頼み方・今の帳票の変え方を案内する
+tags: [navi, docs]
+runs: 1
+execution:
+  prompt: |
+    印刷屋プラグインでは、どんな帳票が作れますか？
+    それと、今使っている見積書の帳票を少し直したいときは、どう頼めばいいですか？
+  max_turns: 10
+  timeout_seconds: 300
+graders:
+  - name: read-navi
+    type: tool_used
+    tool: mcp__plugin_print-craft_print-craft__pcraft_docs
+    input_match: '"section":"navi"|navi'
+  - name: no-write
+    type: tool_used
+    tool: mcp__plugin_print-craft_print-craft__pcraft_save_settings
+    min: 0
+    max: 0
+  - name: answer
+    type: llm
+    criteria: |
+      最後の答えを見る。
+      PASS: 次をすべて満たす。(1) 説明の文は日本語で、英語だけの文が混ざっていない（式・関数名・ファイル名は英字でよい）。
+      (2) 作れる帳票の種類を 4 つ以上挙げている（見積書・請求書などの帳票、一覧表（一覧帳票）、工程表などを含む）。
+      (3) 今の帳票を直す流れに触れている: 今の設定を作業フォルダーに置く（設定画面の「設定をダウンロード」か、取得）、直した後に設定画面でアップロードして「一部置換」で取り込む。
+      (4) 直したい所の頼み方の例を 1 つ以上示している。
+      FAIL: どれかが欠けている。または、AI が kintone に直接書き込んで反映すると言っている。

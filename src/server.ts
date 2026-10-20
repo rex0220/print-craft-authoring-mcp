@@ -43,6 +43,7 @@ export function instructions(): string {
     versionLine(),
     "kintone の印刷屋プラグイン（rex0220 Print craft）の設定 JSON（封筒形式）を、検査（normalize）を通して作業フォルダーに保存・確認するサーバー。",
     "- 利用者への返答は、途中の経過も含めて利用者の言語で書く（日本語の依頼には日本語。英語の文を挟まない）",
+    "- 利用者に使い方・できること（帳票の種類）・頼み方・今の帳票の変え方を聞かれたら、pcraft_docs の navi で答える（帳票の種類の一覧、依頼の文の例、記事）",
     "- 手順と資料は pcraft_docs（引数なしで目次）。状態（作業フォルダー、印刷屋の zip、kintone の接続）は pcraft_status / pcraft_workspace_status で確かめる。手順の文から推し量らない",
     "- 保存できるか・結果を推し量らない。必ずツールを呼び、返った status と findings をそのまま利用者に伝える。警告は消さずに伝える",
     "- 作業フォルダーのファイルは print-craft のツールだけで書く。保存が conflict・denied になっても、ほかのツール（ファイルの操作・shell）で消したり書き換えたりして回り道をしない（直すなら pcraft_update_button。消すかは利用者が決める）",
