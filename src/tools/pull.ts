@@ -43,7 +43,7 @@ export function registerPull(server: McpServer, ctx: ServerContext): void {
         try {
           const w = await prepare(ctx, input.workspaceId);
           if (isToolResult(w)) return w;
-          const pluginId = w.engine.source.pluginId;
+          const pluginId = w.parent.source.pluginId;
           if (!pluginId) throw new InputError("印刷屋のプラグイン ID が分からない（印刷屋の zip に PUBKEY が無い）");
           const t = profileOf(w.mode, input.profile);
           const appId = input.app;
@@ -53,7 +53,7 @@ export function registerPull(server: McpServer, ctx: ServerContext): void {
           const usePreview = "preview" in input && input.preview === true;
           let result;
           try {
-            result = await pullSettings(k.client, w.engine, { app: appId, preview: usePreview, guestSpaceId: k.guestSpaceId, pluginId });
+            result = await pullSettings(k.client, w.parent, { app: appId, preview: usePreview, guestSpaceId: k.guestSpaceId, pluginId });
           } catch (e) {
             if (e instanceof RestError && /plugin\/config/.test(e.apiPath ?? "")) {
               return failure(

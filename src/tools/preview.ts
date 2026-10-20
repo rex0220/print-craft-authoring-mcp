@@ -91,13 +91,13 @@ export function registerPreview(server: McpServer, ctx: ServerContext): void {
           const origin = trustedOrigin(w.mode, w.root, f.file, input.profile);
           const baseUrl = origin.baseUrl;
           // 描く前に必ず検査する（tools 1.3.0 の runPreview は検査でエラーがあっても描く。描かせない。Codex の B1 レビュー MAJOR 2）
-          w.engine.setContext({ baseUrl: baseUrl ?? DEFAULT_CONTEXT_BASE_URL, appId: fields.appId });
-          const checked = await normalizeSettings({ settingsText: f.text, settingsFile: f.relPath, fields, engine: w.engine, policy: w.policy, baseUrl });
+          w.previewEngine.setContext({ baseUrl: baseUrl ?? DEFAULT_CONTEXT_BASE_URL, appId: fields.appId });
+          const checked = await normalizeSettings({ settingsText: f.text, settingsFile: f.relPath, fields, engine: w.previewEngine, policy: w.policy, baseUrl });
           if (checked.findings.hasErrors) return failure("invalid", "NormalizeError", `設定にエラーがあるので帳票を描かない（pcraft_normalize で確かめる）: ${checked.summary}`, checked.findings.items as unknown as Finding[]);
           const recordJson = await withJsonError(w.root, recordFile, "レコードのファイル", () => readJsonLimited(recordFile));
           let result: PreviewResult;
           try {
-            result = await runPreview({ settingsText: f.text, settingsFile: f.relPath, fields, recordFile: recordJson, engine: w.engine, policy: w.policy, button: input.button, baseUrl });
+            result = await runPreview({ settingsText: f.text, settingsFile: f.relPath, fields, recordFile: recordJson, engine: w.previewEngine, policy: w.policy, button: input.button, baseUrl });
           } catch (e) {
             // レコードの形の誤り（中核の決まった文）は invalid。それ以外は描画の想定外の誤りで、文を返さない（例: 明細の行の形が違うと、例外の文に値が入る）
             if (e instanceof InputError) return fromError(e);

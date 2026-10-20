@@ -65,8 +65,8 @@ export function registerRecord(server: McpServer, ctx: ServerContext): void {
           if (fieldsData.appId === appId && fieldsData.related && Object.keys(fieldsData.related).length > 0) {
             const w = await prepare(ctx, input.workspaceId);
             if (isToolResult(w)) notes.push("関連レコード一覧の参照先のレコードは取らなかった（印刷屋の zip が要る。pcraft_status で確かめる）");
-            else if (typeof (w.engine.api as { relatedChildrenUsedBy?: unknown }).relatedChildrenUsedBy !== "function") notes.push("印刷屋の zip が Ver.7 以前（authoring API 1 / 2）なので関連レコード一覧の参照先のレコードは取らない");
-            else related = { api: w.engine.api, fields: fieldsData, settings, clientFor: (relatedApp) => kintoneFor(t, relatedApp).client };
+            else if (typeof (w.parent.api as { relatedChildrenUsedBy?: unknown }).relatedChildrenUsedBy !== "function") notes.push("印刷屋の zip が Ver.7 以前（authoring API 1 / 2）なので関連レコード一覧の参照先のレコードは取らない");
+            else related = { api: w.parent.api, fields: fieldsData, settings, clientFor: (relatedApp) => kintoneFor(t, relatedApp).client };
           }
         }
         // 書けるかを kintone に送る前に確かめる（送ってから断らない）

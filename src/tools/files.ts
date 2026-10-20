@@ -34,6 +34,7 @@ import {
   profileDirOf,
   resolveRead,
   resolveWrite,
+  EvalError,
   type ChangeOp,
   type ProfileDef,
   type WorkspaceMode
@@ -252,6 +253,12 @@ export function fromError(e: unknown): ToolResult {
   if (e instanceof ButtonNotFoundError) return failure("invalid", "ButtonNotFoundError", message);
   if (e instanceof QueryError) return failure("invalid", "QueryError", message);
   if (e instanceof InputError || e instanceof SyntaxError) return failure("invalid", "InputError", message);
+  // 評価の子プロセスの誤り（0.3.0）: 入力の誤りは invalid。zip は決まった文（子プロセスの文は zip のパスを含みうる）。other の文は中核が決まった文にしている
+  if (e instanceof EvalError) {
+    if (e.kind === "input") return failure("invalid", "InputError", message);
+    if (e.kind === "zip") return failure("failed", "PluginZipError", "評価の子プロセスで印刷屋の zip を読めない（zip を置き換えたら /mcp で再接続。Desktop は再起動）");
+    return failure("failed", e.kind === "other" ? "EvalError" : e.innerName, message);
+  }
   const err = e instanceof Error ? e : new Error(message);
   return failure("failed", err.name && err.name !== "Error" ? err.name : err.constructor?.name ?? "Error", message);
 }

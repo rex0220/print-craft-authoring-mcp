@@ -1,10 +1,10 @@
 /**
- * pcraft_normalize（検査。実装案 5.1）: 中核の normalizeSettings を、書き戻さずに実行する（CLI の --dry-run。check で --check）。
+ * pcraft_normalize（検査。実装案 5.1）: 中核の normalizeSettings を、書き戻さずに実行する（CLI の --dry-run。check で --check）。0.3.0 から評価の子プロセスで（normalizeInChild）。
  * 書くのは保存のツール（pcraft_save_settings / pcraft_update_button）だけ。エラーがあれば invalid（findings にエラー）
  */
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
-import { DEFAULT_CONTEXT_BASE_URL, normalizeSettings, readFieldsFile } from "../core.ts";
+import { normalizeInChild, readFieldsFile } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { failure, ok, type Finding } from "../result.ts";
 import { isToolResult, prepare, workspaceIdSchema } from "./common.ts";
@@ -44,8 +44,8 @@ export function registerNormalize(server: McpServer, ctx: ServerContext): void {
           const fields = await withJsonError(w.root, fieldsFile, "項目定義のファイル", () => readFieldsFile(fieldsFile));
           const origin = trustedOrigin(w.mode, w.root, f.file, input.profile);
           const baseUrl = origin.baseUrl;
-          w.engine.setContext({ baseUrl: baseUrl ?? DEFAULT_CONTEXT_BASE_URL, appId: fields.appId });
-          const r = await normalizeSettings({ settingsText: f.text, settingsFile: f.relPath, fields, engine: w.engine, policy: w.policy, check: input.check === true, baseUrl });
+          // 検査は子プロセスで（時間とメモリの上限。print-craft の docs/authoring-try-plan.md 4.6）
+          const r = await normalizeInChild(w.evaluator, { settingsText: f.text, settingsFile: f.relPath, fields, policy: w.policy, check: input.check === true, baseUrl });
           const findings = r.findings.items as unknown as Finding[];
           const checkDiffs = r.checkDiffs ? { count: r.checkDiffs.length, items: r.checkDiffs.slice(0, MAX_CHECK_DIFFS) } : undefined;
           if (!r.output) return failure("invalid", "NormalizeError", `normalize のエラーがある: ${r.summary}`, findings);
