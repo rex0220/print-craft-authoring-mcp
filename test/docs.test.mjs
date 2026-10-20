@@ -7,7 +7,7 @@ import path from "node:path";
 import { ROOT, VERSION, connect, connectClaudeCode } from "./helpers.mjs";
 
 const SOURCE = JSON.parse(readFileSync(path.join(ROOT, "references", "template", "SOURCE.json"), "utf8"));
-const KEYS = ["howto-new", "howto-edit", "try", "results", "constraints", "usable", "deploy", "connections", "recipes", "report-functions", "spec", "field-types", "function-list", "function-detail", "function-articles", "css-defaults", "sample-quote", "sample-list"];
+const KEYS = ["howto-new", "howto-edit", "try", "results", "constraints", "usable", "deploy", "connections", "recipes", "patterns", "patterns-verified", "report-functions", "spec", "field-types", "function-list", "function-detail", "function-articles", "css-defaults", "sample-quote", "sample-list"];
 const textOf = (r) => r.content.map((c) => c.text).join("\n");
 
 test("目次: 1 行目に版、資料の元のコミット、作業の順と決まり（推し量らない）、章の一覧。作業フォルダーが未登録・zip が未設定でも読める。文章だけ", async () => {

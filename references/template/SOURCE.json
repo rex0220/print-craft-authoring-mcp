@@ -1,14 +1,24 @@
 {
   "repository": "rex0220/print-craft-authoring",
-  "commit": "d37b918793f3cbe983b8a7d52f9a2c7ad1f31570",
-  "short": "d37b918",
+  "commit": "b8e84cb908c635bfb3d12eb56aab255324d08ecf",
+  "short": "b8e84cb",
   "dirty": false,
-  "copiedAt": "2026-10-20T01:29:54.912Z",
+  "copiedAt": "2026-10-20T05:06:19.759Z",
   "files": [
     {
       "path": "docs/帳票レシピ集.md",
-      "bytes": 23816,
-      "sha256": "df37e4b3ff6c412e261d30e39ea27cc30566099f479138eb456604942d75ed3f"
+      "bytes": 24391,
+      "sha256": "74f4f2312526203748e73b19f9a10d6a657cdbf772f51de1ebcd2d222534ce5e"
+    },
+    {
+      "path": "docs/計算パターン.md",
+      "bytes": 12999,
+      "sha256": "628ac7ca82c2c71ecff6c96fb2596e1f530be72f6f657b2fc109644aea8239b1"
+    },
+    {
+      "path": "docs/計算パターン_検証.md",
+      "bytes": 20405,
+      "sha256": "f3d33664b967e7ab12c7aecb397d6bd5bb2b242260ae09fe1081895394db6892"
     },
     {
       "path": "docs/帳票関数リファレンス.md",

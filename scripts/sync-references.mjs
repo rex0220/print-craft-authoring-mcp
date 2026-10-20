@@ -18,6 +18,8 @@ const outDir = path.join(root, "references", "template");
 
 export const FILES = [
   "docs/帳票レシピ集.md",
+  "docs/計算パターン.md",
+  "docs/計算パターン_検証.md",
   "docs/帳票関数リファレンス.md",
   "docs/設定ファイル仕様.md",
   "docs/フィールドタイプ別仕様.md",
