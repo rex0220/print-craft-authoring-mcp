@@ -110,11 +110,41 @@ for (const re of [/require\(["']@modelcontextprotocol\//, /require\(["']zod(?:\/
   if (re.test(bundle)) throw new Error(`束ねていない依存が残っている: ${re}`);
 }
 
-// 束ねた依存の著作権表示: 本体とプレビューの表示に入ったパッケージと、vendor/ の moment
+// 評価の子プロセスの入口（dist/server/eval-worker.cjs。中核の dist/eval-worker.mjs を happy-dom ごと束ねる。中核の runEval が fork する。
+// print-craft の docs/authoring-try-plan.md 4.6、T0a）。import.meta.url は本体と同じく自分のファイルの URL（中核の paths.ts が 1 つ上の vendor/ を見る）
+const workerOut = path.join(dist, "server", "eval-worker.cjs");
+const worker = await build({
+  entryPoints: [path.join(toolsDir, "dist", "eval-worker.mjs")],
+  outfile: workerOut,
+  bundle: true,
+  format: "cjs",
+  platform: "node",
+  target: "node20",
+  charset: "utf8",
+  legalComments: "eof",
+  external: ["bufferutil", "utf-8-validate"],
+  banner: {
+    js: `/*! print-craft MCP ${pkg.version} の評価の子プロセス（中核 @rex0220/print-craft-authoring-tools ${tools.version}）。MIT License. 計算式エンジンと印刷屋のコードは利用者の印刷屋プラグインの zip から読む（このファイルには含まれない） */\nvar __pcraft_import_meta_url = require("node:url").pathToFileURL(__filename).href;`
+  },
+  define: { "import.meta.url": "__pcraft_import_meta_url" },
+  absWorkingDir: root,
+  metafile: true,
+  logLevel: "warning"
+});
+const workerInputs = Object.keys(worker.metafile.inputs);
+const workerOutside = workerInputs.filter((p) => !/^node_modules\//.test(p.replace(/\\/g, "/")));
+if (workerOutside.length) throw new Error(`評価の子プロセスの入口に node_modules/ の外のファイルが束ねられている:\n  ${workerOutside.join("\n  ")}`);
+const workerBundle = readFileSync(workerOut, "utf8");
+for (const re of [/require\(["']happy-dom/, /require\(["']@rex0220\//]) {
+  if (re.test(workerBundle)) throw new Error(`評価の子プロセスの入口に束ねていない依存が残っている: ${re}`);
+}
+
+// 束ねた依存の著作権表示: 本体とプレビューの表示と評価の子プロセスに入ったパッケージと、vendor/ の moment
 const notices = renderNotices(
   bundledPackages(root, [
     { label: "本体", metafile: result.metafile },
-    { label: "プレビューの表示", metafile: ui.metafile }
+    { label: "プレビューの表示", metafile: ui.metafile },
+    { label: "評価の子プロセス", metafile: worker.metafile }
   ]),
   vendorMoment(path.join(toolsDir, "vendor", "moment.json"))
 );

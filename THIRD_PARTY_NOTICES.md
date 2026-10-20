@@ -12,13 +12,13 @@ print-craft MCP の配布物（Claude Desktop の `.mcpb` と、Claude Code の�
 | @modelcontextprotocol/core | 2.0.0 | MIT | 本体、プレビューの表示 |
 | @modelcontextprotocol/ext-apps | 2.0.3 | MIT | プレビューの表示 |
 | @modelcontextprotocol/server | 2.0.0 | MIT | 本体 |
-| @rex0220/print-craft-authoring-tools | 2.2.0 | MIT | 本体 |
-| buffer-image-size | 0.6.4 | MIT | 本体 |
-| entities | 7.0.1 | BSD-2-Clause | 本体 |
-| happy-dom | 20.14.5 | MIT | 本体 |
+| @rex0220/print-craft-authoring-tools | 2.2.0 | MIT | 本体、評価の子プロセス |
+| buffer-image-size | 0.6.4 | MIT | 本体、評価の子プロセス |
+| entities | 7.0.1 | BSD-2-Clause | 本体、評価の子プロセス |
+| happy-dom | 20.14.5 | MIT | 本体、評価の子プロセス |
 | pkce-challenge | 5.0.1 | MIT | プレビューの表示 |
-| whatwg-mimetype | 3.0.0 | MIT | 本体 |
-| ws | 8.22.0 | MIT | 本体 |
+| whatwg-mimetype | 3.0.0 | MIT | 本体、評価の子プロセス |
+| ws | 8.22.0 | MIT | 本体、評価の子プロセス |
 | zod | 4.4.3 | MIT | 本体、プレビューの表示 |
 | moment | 2.24.0 | MIT | vendor/ |
 
@@ -934,7 +934,7 @@ the full license text.
 
 - ライセンス: MIT
 - 入手先: https://github.com/rex0220/print-craft-authoring
-- 入る所: 本体
+- 入る所: 本体、評価の子プロセス
 
 ```text
 MIT License
@@ -970,7 +970,7 @@ SOFTWARE.
 
 - ライセンス: MIT
 - 入手先: https://github.com/evidentpoint/buffer-image-size
-- 入る所: 本体
+- 入る所: 本体、評価の子プロセス
 
 ```text
 The MIT License (MIT)
@@ -988,7 +988,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 - ライセンス: BSD-2-Clause
 - 入手先: https://github.com/fb55/entities
-- 入る所: 本体
+- 入る所: 本体、評価の子プロセス
 
 ```text
 Copyright (c) Felix Böhm
@@ -1008,7 +1008,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - ライセンス: MIT
 - 入手先: https://github.com/capricorn86/happy-dom
-- 入る所: 本体
+- 入る所: 本体、評価の子プロセス
 
 ```text
 MIT License
@@ -1068,7 +1068,7 @@ SOFTWARE.
 
 - ライセンス: MIT
 - 入手先: https://github.com/jsdom/whatwg-mimetype
-- 入る所: 本体
+- 入る所: 本体、評価の子プロセス
 
 ```text
 Copyright © Domenic Denicola <d@domenic.me>
@@ -1084,7 +1084,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - ライセンス: MIT
 - 入手先: https://github.com/websockets/ws
-- 入る所: 本体
+- 入る所: 本体、評価の子プロセス
 
 ```text
 Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>

@@ -28,7 +28,7 @@ function assert(cond, message) {
 async function main() {
   assert(existsSync(ZIP), `印刷屋の zip が無い: ${ZIP}`);
   const entries = readZip(mcpbPath);
-  const expected = ["manifest.json", "server/index.cjs", "server/print-craft-mcp.cjs", "vendor/moment-with-locales.min.js", "vendor/moment.json", "LICENSE", NOTICES_FILE, "README.md"];
+  const expected = ["manifest.json", "server/index.cjs", "server/print-craft-mcp.cjs", "server/eval-worker.cjs", "vendor/moment-with-locales.min.js", "vendor/moment.json", "LICENSE", NOTICES_FILE, "README.md"];
   assert(JSON.stringify([...entries.keys()].sort()) === JSON.stringify([...expected].sort()), `中身が違う: ${[...entries.keys()].join(", ")}`);
   const problems = problemsOf(entries);
   assert(!problems.length, `入れてはいけないもの:\n  ${problems.join("\n  ")}`);

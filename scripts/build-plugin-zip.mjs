@@ -32,6 +32,7 @@ export const PLUGIN_FILES = [
   ["hooks/register.ts", "hooks/register.ts"],
   ["dist/server/index.cjs", "dist/server/index.cjs"],
   ["dist/server/print-craft-mcp.cjs", "dist/server/print-craft-mcp.cjs"],
+  ["dist/server/eval-worker.cjs", "dist/server/eval-worker.cjs"],
   ["dist/vendor/moment-with-locales.min.js", "dist/vendor/moment-with-locales.min.js"],
   ["dist/vendor/moment.json", "dist/vendor/moment.json"],
   ["LICENSE", "LICENSE"],

@@ -109,6 +109,7 @@ function files() {
     { path: "manifest.json", data: Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, "utf8") },
     { path: "server/index.cjs", data: readFileSync(join(dist, "server", "index.cjs")) },
     { path: "server/print-craft-mcp.cjs", data: readFileSync(join(dist, "server", "print-craft-mcp.cjs")) },
+    { path: "server/eval-worker.cjs", data: readFileSync(join(dist, "server", "eval-worker.cjs")) },
     { path: "vendor/moment-with-locales.min.js", data: readFileSync(join(dist, "vendor", "moment-with-locales.min.js")) },
     { path: "vendor/moment.json", data: readFileSync(join(dist, "vendor", "moment.json")) },
     { path: "LICENSE", data: readFileSync(join(root, "LICENSE")) },
