@@ -12,7 +12,7 @@ print-craft MCP の配布物（Claude Desktop の `.mcpb` と、Claude Code の�
 | @modelcontextprotocol/core | 2.0.0 | MIT | 本体、プレビューの表示 |
 | @modelcontextprotocol/ext-apps | 2.0.3 | MIT | プレビューの表示 |
 | @modelcontextprotocol/server | 2.0.0 | MIT | 本体 |
-| @rex0220/print-craft-authoring-tools | 2.3.0 | MIT | 本体、評価の子プロセス |
+| @rex0220/print-craft-authoring-tools | 2.3.1 | MIT | 本体、評価の子プロセス |
 | buffer-image-size | 0.6.4 | MIT | 本体、評価の子プロセス |
 | entities | 7.0.1 | BSD-2-Clause | 本体、評価の子プロセス |
 | happy-dom | 20.14.5 | MIT | 本体、評価の子プロセス |
@@ -930,7 +930,7 @@ CC-BY-4.0. See https://creativecommons.org/licenses/by/4.0/legalcode for
 the full license text.
 ```
 
-## @rex0220/print-craft-authoring-tools 2.3.0
+## @rex0220/print-craft-authoring-tools 2.3.1
 
 - ライセンス: MIT
 - 入手先: https://github.com/rex0220/print-craft-authoring

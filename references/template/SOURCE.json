@@ -1,9 +1,9 @@
 {
   "repository": "rex0220/print-craft-authoring",
-  "commit": "8487c965aa902a8515915ab9cde4638829300c99",
-  "short": "8487c96",
+  "commit": "2908147eee7f01363884453536105447ee1ba14d",
+  "short": "2908147",
   "dirty": false,
-  "copiedAt": "2026-10-20T09:00:49.309Z",
+  "copiedAt": "2026-10-20T10:04:17.883Z",
   "files": [
     {
       "path": "docs/使い方ナビ.md",
@@ -12,23 +12,23 @@
     },
     {
       "path": "docs/帳票レシピ集.md",
-      "bytes": 24752,
-      "sha256": "f6dc3dcfde24b47cea29b957f89d93fbcc3ac2cd5409f6242ff6b4e3baf2a6dd"
+      "bytes": 24813,
+      "sha256": "f973368fddcf2293c7f541b9b2249d8967668b2750ddf7b828bbb19f80b923d0"
     },
     {
       "path": "docs/計算パターン.md",
-      "bytes": 16340,
-      "sha256": "a0d5973245f4d7deecd8c9e94d1d60429405f0703257d18a364bb69b570d77f1"
+      "bytes": 16398,
+      "sha256": "2d20ac95d6b4052be428e691196e07c331307c34aa295e2500ada8232451e7ee"
     },
     {
       "path": "docs/計算パターン_検証.md",
-      "bytes": 22050,
-      "sha256": "b6865d9471ec55d65c7bbc62272c337609a82cc20b7e1d61358bd3fb8f346528"
+      "bytes": 22358,
+      "sha256": "69193fadf4e99485a5d43f604840d66546d3fa8afeab2341b55c40d9ce177c7a"
     },
     {
       "path": "docs/帳票関数リファレンス.md",
-      "bytes": 15142,
-      "sha256": "0e8ba72223f78d2e30c17c92a40df4b2948a3aaedfbb0ab1dc64007a1851a78c"
+      "bytes": 15185,
+      "sha256": "7f1fdb6d54a714bdbfde2615ffaa4533940857a132ed33115135d9e559e28d98"
     },
     {
       "path": "docs/設定ファイル仕様.md",
@@ -62,8 +62,8 @@
     },
     {
       "path": "docs/samples/見積書/settings-source.json",
-      "bytes": 4235,
-      "sha256": "47d7b8558651d06145e835fc0aec63329d1919b6f291273fdcbec2073b9f5403"
+      "bytes": 4238,
+      "sha256": "b1d8b47a6f7fc958375209fd82e609f2293fb3db6e661ba61219ddc889788d02"
     },
     {
       "path": "docs/samples/一覧帳票/settings-source.json",

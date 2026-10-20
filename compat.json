@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "runtimeChecks": {
     "mcpVersion": "0.3.0",
-    "coreVersion": ">=2.3.0 <3.0.0",
+    "coreVersion": ">=2.3.1 <3.0.0",
     "coreApiVersion": 2,
-    "docsRevision": "8487c96",
+    "docsRevision": "2908147",
     "authoringApiVersions": [1, 2, 3],
     "pluginVersion": { "min": 6 }
   },

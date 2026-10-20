@@ -4,7 +4,7 @@ print-craft MCP（Claude Desktop の拡張機能「印刷屋 設定オーサリ�
 
 ## 0.3.0（2026-10-20）
 
-中核は `@rex0220/print-craft-authoring-tools` 2.3.0、資料はテンプレート print-craft-authoring 8487c96。
+中核は `@rex0220/print-craft-authoring-tools` 2.3.1、資料はテンプレート print-craft-authoring 2908147。
 
 - 新しいツール `pcraft_try`: お試しアプリ（架空の値の標本: 全項目タイプの `formula-sample`、見積書の `quote`、一覧帳票の `list`、工程表の `gantt`）で、計算式（10 件まで）か 1 ボタンの帳票を試す。式の値・エラーの文・ページの文字を返し、帳票は作業フォルダーの `out/try/` に書く（Claude Desktop は会話の中のプレビューにも）。利用者のアプリ・レコード・kintone は使わない。テーブルの行数（`rows`）と一覧帳票の件数（`count`）を変えられる
 - 式の評価を別のプロセスで: 検査（`pcraft_normalize`、保存の検査）・`pcraft_preview`・`pcraft_try` の評価を、サーバーとは別の子プロセス（Claude Desktop は Worker thread）で動かし、時間とメモリの上限（既定 60 秒・4,096 MiB。環境変数 `PCRAFT_EVAL_TIMEOUT_SEC` / `PCRAFT_EVAL_HEAP_MB`）で止める。重い式でサーバーが止まらない（Claude Desktop では、メモリの上限を超えるとサーバーごと落ちることがある）
@@ -12,6 +12,7 @@ print-craft MCP（Claude Desktop の拡張機能「印刷屋 設定オーサリ�
 - `pcraft_update_button`: 差し替えたボタンの、一覧帳票か詳細画面か（`list`）とボタンを出す一覧（`viewsCsv`）が前と違えば警告（`button.listChanged` / `button.viewsChanged`。保存は止めない）
 - 資料（`pcraft_docs`）: 章 `navi`（使い方ナビ = 作れる帳票の種類と記事、使い方の流れ、頼み方の例、今の帳票の変え方）、`try`（お試しアプリの使い方と使う場面の決まり）、`patterns` / `patterns-verified`（計算パターン = 和暦・曜日・支払期限・年度、文字列、空・比較・端数、大きい帳票の式。例はお試しアプリで確かめたもの）。制約の章に「`${…}` の中には改行と `}` を書けない」。資料の検索は、空白で区切った言葉を全部含む節を返す
 - テンプレートの見本: 五線譜（Ver.9。式が軽い版）、盤面図（500 手まで）
+- 直したこと: 複数行の項目の差し込みを `REPLACEALL(ESC_HTML(項目), NEWLINE(), "<br>")` に（資料・制約の章・見本の見積書と工程表）。0.2 までの資料が勧めていた `REPLACE` は最初の 1 つだけを置き換えるので、改行が 2 つ以上ある値は 2 つ目から `<br>` にならなかった。中核 2.3.1 の検査は `REPLACEALL(ESC_HTML(…), …)` を安全な差し込みと見る（`REPLACE` には警告を出さない）
 - 決まり（指示と目次）: 利用者への返答は途中の経過も含めて利用者の言語で書く。反映の取り込み方は 3 つの場合（印刷屋の設定が無いアプリは全置換、ボタンを足すなら追加、差し替えるなら一部置換）。頼まれていなければボタンの `list` / `viewsCsv` を変えない。`pcraft_try` を使う場面、使い方の案内は `navi`
 
 ## 0.2.1（2026-10-20）
