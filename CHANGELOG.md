@@ -2,7 +2,7 @@
 
 print-craft MCP（Claude Desktop の拡張機能「印刷屋 設定オーサリング（Print craft）」と、Claude Code のプラグイン `print-craft`）の、利用者に見える変更です。新しい版が上です。
 
-## 0.3.1（未リリース）
+## 0.3.1（2026-10-21）
 
 中核は `@rex0220/print-craft-authoring-tools` 2.3.2 のまま。資料はテンプレート print-craft-authoring 2ee6d38。
 
