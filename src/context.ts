@@ -70,7 +70,7 @@ export function createServerContext(surface: Surface, binding: WorkspaceBinding,
       return quietly(() => loadEngine({ pluginZip: zip }));
     },
     evaluator(zip) {
-      // 上限は既定（60 秒、1,024 MiB）。環境変数 PCRAFT_EVAL_TIMEOUT_SEC / PCRAFT_EVAL_HEAP_MB で変えられる（設定項目には出さない。重い帳票と試験のため）
+      // 上限は既定（60 秒、4,096 MiB）。環境変数 PCRAFT_EVAL_TIMEOUT_SEC / PCRAFT_EVAL_HEAP_MB で変えられる（設定項目には出さない。重い帳票と試験のため）
       return { pluginZip: zip, run: { workerFile: EVAL_WORKER_FILE, env: clean, ...evalLimitsFromEnv(clean) } };
     },
     serial(fn) {

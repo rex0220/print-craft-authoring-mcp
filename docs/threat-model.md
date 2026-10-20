@@ -72,7 +72,7 @@
 | M22 | 接続のファイルを作業フォルダーの中に置く・作業フォルダーの中を指す（AI が作業フォルダーのファイルとして読む・書き換える） | A1、A8 | 指定のパスと実際のパスが、そのプロセスが知っているすべての作業フォルダーの外のときだけ読む（inside-workspace、denied）。作業フォルダーの中の symlink が外を指すときも断る | S | — | 15.3 | 決定済み |
 | M23 | 読み込みの途中・呼び出しの途中に接続のファイルが変わる（別の接続先で取ったものを前のフォルダーに書く） | A4 | 開いた fd から読み、識別（dev、ino、大きさ、日時。ino が無ければ中身）を読む前後で比べる（unreadable）。呼び出しの初めのスナップショットと、確定の直前に読み直した profile の意味の digest（接続先、ゲストスペース、認証の種類、資格情報の指紋、アプリ）を比べる（connection-changed、conflict） | S | ほかの profile だけの書き換えでは止めない（意図した動き） | 15.3、15.6 | 決定済み |
 | M24 | kSQL と共有した接続のファイルで、`KSQL_*` の上書きや使わないアプリのトークンが混ざる | A1 | print-craft は `KSQL_*` を読まない（読む環境変数は接続のファイルが名前を書いた `env:` と `passwordEnv` だけ）。送るのは対象のアプリのトークン 1 つだけ。形の誤りの profile は使わない | S | — | 15.2 | 決定済み |
-| M25 | 重い式・大きい結果（終わらないループ、巨大な文字列、行の多い表）で print-craft MCP が止まる・AI に大量に返す | A6 | 式の評価は評価の子プロセスで、時間（既定 60 秒）とメモリ（既定 1,024 MiB）の上限で止め、決まった文の誤り（時間切れ・メモリ切れ）にする（`PCRAFT_EVAL_TIMEOUT_SEC` / `PCRAFT_EVAL_HEAP_MB`）。子プロセスからの結果・式 1 つの値・帳票の HTML・`pcraft_try` の結果の JSON に上限 | S | Desktop は Worker thread（Electron の Node は fork できない）なので、メモリの上限を超えるとサーバーのプロセスごと落ちることがある（Desktop が起動し直す。受け入れた危険。2026-10-20 Takashi「OK」） | print-craft の docs/authoring-try-plan.md 4.6 | 決定済み |
+| M25 | 重い式・大きい結果（終わらないループ、巨大な文字列、行の多い表）で print-craft MCP が止まる・AI に大量に返す | A6 | 式の評価は評価の子プロセスで、時間（既定 60 秒）とメモリ（既定 4,096 MiB。印刷屋のエンジンは関数の結果を評価が終わるまで持ち、docs/samples の五線譜は 1 ボタン約 1.8 GB）の上限で止め、決まった文の誤り（時間切れ・メモリ切れ）にする（`PCRAFT_EVAL_TIMEOUT_SEC` / `PCRAFT_EVAL_HEAP_MB`）。子プロセスからの結果・式 1 つの値・帳票の HTML・`pcraft_try` の結果の JSON に上限 | S | Desktop は Worker thread（Electron の Node は fork できない）なので、メモリの上限を超えるとサーバーのプロセスごと落ちることがある（Desktop が起動し直す。受け入れた危険。2026-10-20 Takashi「OK」） | print-craft の docs/authoring-try-plan.md 4.6 | 決定済み |
 
 ## 5. 画面ごとの違い
 
