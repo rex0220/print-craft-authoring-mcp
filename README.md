@@ -141,6 +141,8 @@ mkdir -p ~/pcraft-b1-ws && cd ~/pcraft-b1-ws
 
 公開した 0.3.0 を marketplace から（2026-10-20 Mac、Claude Code 2.1.304）: 更新して確かめた（Takashi「1 OK」。`pcraft_status` が 0.3.0・中核 2.3.2）。`claude plugin list` で print-craft@rex0220-print-craft が 0.3.0、user scope、有効。
 
+公開した 0.3.1 を marketplace から（2026-10-21 Mac、Claude Code）: 更新して `pcraft_status` が 0.3.1（Takashi）。
+
 ### Desktop（`.mcpb`）
 
 `npm run build:mcpb` → `dist-mcpb/print-craft.mcpb` を入れる → **Desktop を終了して起動し直す** → 新しいチャット。
