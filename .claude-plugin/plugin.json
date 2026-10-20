@@ -1,6 +1,6 @@
 {
   "name": "print-craft",
-  "version": "0.3.0-dev.4",
+  "version": "0.3.0-dev.5",
   "description": "kintone の印刷屋プラグイン（rex0220 Print craft）の帳票の設定 JSON を、検査（normalize）を通して作業フォルダーに保存・確認する（print-craft MCP と、作業フォルダーの結び付け・設定ファイルへの直接の書き込みを止めるフック）",
   "author": {
     "name": "rex0220"
