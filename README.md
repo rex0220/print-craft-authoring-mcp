@@ -139,6 +139,8 @@ mkdir -p ~/pcraft-b1-ws && cd ~/pcraft-b1-ws
 
 公開した 0.2.1 を marketplace から（2026-10-20 Mac）: 手元の marketplace は v0.2.1 の zip を指していたが、入れたプラグインは 0.2.0 のまま（`claude plugin list`）→ 更新して起動し直した → `pcraft_status` が 0.2.1・中核 2.2.0（d37b918）、zip は `print-craft-plugin9.zip`（`/plugin configure` で Ver.9 に）、`ready`。Desktop の Code（Claude Code）では、プラグインの print-craft と拡張機能の print-craft（`.mcpb` 0.2.1）が一緒に見え、`pcraft_status` は両方が答えた（作業フォルダーはプラグインが pcraft-b1-ws・pj-print-craft、拡張機能が pcraft-b1-desktop）。プラグインが 0.2.0 のままだと、0.2.0 のフックが拡張機能の作業フォルダーのツールまで捕まえる（0.2.1 で直した）。
 
+公開した 0.3.0 を marketplace から（2026-10-20 Mac、Claude Code 2.1.304）: 更新して確かめた（Takashi「1 OK」。`pcraft_status` が 0.3.0・中核 2.3.2）。`claude plugin list` で print-craft@rex0220-print-craft が 0.3.0、user scope、有効。
+
 ### Desktop（`.mcpb`）
 
 `npm run build:mcpb` → `dist-mcpb/print-craft.mcpb` を入れる → **Desktop を終了して起動し直す** → 新しいチャット。
