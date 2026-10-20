@@ -52,6 +52,7 @@ export function indexText(): string {
     "- 既存の設定を直す: pcraft_pull か、設定のダウンロードを inbox/ に置いてもらい pcraft_take → pcraft_edit（-edit.json に写す）→ pcraft_buttons → pcraft_normalize（check: true）→ pcraft_update_button → pcraft_preview → pcraft_diff。詳しくは howto-edit",
     "",
     "決まり:",
+    "- 利用者への返答は、途中の経過も含めて利用者の言語で書く（日本語の依頼には日本語。英語の文を挟まない）",
     "- 状態（作業フォルダー、印刷屋の zip、kintone の接続）は、この文から推し量らず pcraft_status / pcraft_workspace_status で確かめる",
     "- kintone の接続は、利用者が設定した接続のファイル（kSQL の ksql.config.json と同じ形）の profile だけ。接続のファイルと、そこが名前を書いた環境変数は読まない・書かない・表示しない（connections）",
     "- 保存できるか・結果を推し量らない。必ずツールを呼び、返った status と findings をそのまま利用者に伝える（results）。断られた・conflict になったら回り道をしない（ほかのツール（ファイルの操作・shell）で作業フォルダーのファイルを消す・書き換えない。直すなら pcraft_update_button、消すかは利用者が決めて利用者が消す）",

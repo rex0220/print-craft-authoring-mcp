@@ -111,6 +111,18 @@ test("締めの文: サーバーの指示と目次に同じ決まり（設定画
   }
 });
 
+// 返答の言語（0.3.0。0.3.0-dev.5 の Desktop の確かめで答えの先頭に英語の文が出た。Desktop にはテンプレートの CLAUDE.md が届かない）
+test("返答の言語の決まりが、サーバーの指示と目次の両方にある", async () => {
+  const s = await connectClaudeCode([], {});
+  try {
+    const instructions = String(s.client.getInstructions?.() ?? s.client.getDiscoverResult?.()?.instructions);
+    const index = textOf(await s.call("pcraft_docs", {}));
+    for (const t of [instructions, index]) assert.match(t, /途中の経過も含めて利用者の言語で書く（日本語の依頼には日本語。英語の文を挟まない）/);
+  } finally {
+    await s.close();
+  }
+});
+
 // pcraft_try の使う場面（0.3.0。print-craft の docs/authoring-try-plan.md 4.3）: 指示・目次・ツールの説明・try の章で同じ決まり
 test("pcraft_try の使う場面の決まりが、サーバーの指示・目次・ツールの説明・try の章で同じ", async () => {
   const s = await connectClaudeCode([], {});
