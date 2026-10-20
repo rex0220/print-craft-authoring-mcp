@@ -7,7 +7,7 @@ import { z } from "zod";
 import { normalizeInChild, readFieldsFile } from "../core.ts";
 import type { ServerContext } from "../context.ts";
 import { failure, ok, type Finding } from "../result.ts";
-import { isToolResult, prepare, workspaceIdSchema } from "./common.ts";
+import { isToolResult, logDiscardedOutput, prepare, workspaceIdSchema } from "./common.ts";
 import { checkRelPaths, fieldsFileFor, fromError, originFields, readSettingsFile, trustedOrigin, withJsonError } from "./files.ts";
 import { profileSchema } from "./kintone.ts";
 
@@ -46,6 +46,7 @@ export function registerNormalize(server: McpServer, ctx: ServerContext): void {
           const baseUrl = origin.baseUrl;
           // 検査は子プロセスで（時間とメモリの上限。print-craft の docs/authoring-try-plan.md 4.6）
           const r = await normalizeInChild(w.evaluator, { settingsText: f.text, settingsFile: f.relPath, fields, policy: w.policy, check: input.check === true, baseUrl });
+          logDiscardedOutput(ctx, r.diag);
           const findings = r.findings.items as unknown as Finding[];
           const checkDiffs = r.checkDiffs ? { count: r.checkDiffs.length, items: r.checkDiffs.slice(0, MAX_CHECK_DIFFS) } : undefined;
           if (!r.output) return failure("invalid", "NormalizeError", `normalize のエラーがある: ${r.summary}`, findings);

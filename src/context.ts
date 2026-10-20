@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expandHome, isUnset, type Surface, type WorkspaceBinding } from "./binding.ts";
 import { quietly } from "./console-gate.ts";
-import { loadEngine, modeOf, pluginZipPath, unquote, type Engine, type Evaluator, type WorkspaceMode } from "./core.ts";
+import { evalLimitsFromEnv, loadEngine, modeOf, pluginZipPath, unquote, type Engine, type Evaluator, type WorkspaceMode } from "./core.ts";
 
 /**
  * 評価の子プロセスの入口（束ねた本体 dist/server/print-craft-mcp.cjs の隣の eval-worker.cjs。build-mcp.mjs が中核の dist/eval-worker.mjs を束ねる。
@@ -70,7 +70,8 @@ export function createServerContext(surface: Surface, binding: WorkspaceBinding,
       return quietly(() => loadEngine({ pluginZip: zip }));
     },
     evaluator(zip) {
-      return { pluginZip: zip, run: { workerFile: EVAL_WORKER_FILE, env: clean } };
+      // 上限は既定（60 秒、1,024 MiB）。環境変数 PCRAFT_EVAL_TIMEOUT_SEC / PCRAFT_EVAL_HEAP_MB で変えられる（設定項目には出さない。重い帳票と試験のため）
+      return { pluginZip: zip, run: { workerFile: EVAL_WORKER_FILE, env: clean, ...evalLimitsFromEnv(clean) } };
     },
     serial(fn) {
       const quiet = () => quietly(fn);

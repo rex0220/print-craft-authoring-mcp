@@ -1,5 +1,5 @@
 // normalize と保存の検査は評価の子プロセスを通る（0.3.0。print-craft の docs/authoring-try-plan.md 4.6、T0b。Codex r2 M5）:
-// 子プロセスの入口（dist/server/eval-worker.cjs）を外した本体では、pcraft_normalize と pcraft_save_settings / pcraft_update_button が
+// 子プロセスの入口（dist/server/eval-worker.cjs）を外した本体では、pcraft_normalize と pcraft_save_settings / pcraft_update_button と pcraft_preview（0.3.0、T0c）が
 // failed（EvalError）になり、保存しない（親のエンジンで評価する道が残っていない）。文に絶対パスを出さない
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +11,7 @@ import { ROOT, SETTINGS_TEXT, SKIP as skip, connectClaudeCode, makeWorkspace, sa
 
 const noRunEval = typeof core.runEval !== "function" && "中核に runEval が無い（tools 2.3.0 から）";
 
-test("子プロセスの入口を外した本体では normalize・保存・差し替えが failed（EvalError）で保存しない（親で評価する道が無い）", { skip: skip || noRunEval }, async () => {
+test("子プロセスの入口を外した本体では normalize・保存・差し替え・preview が failed（EvalError）で保存・描画しない（親で評価する道が無い）", { skip: skip || noRunEval }, async () => {
   const copy = mkdtempSync(path.join(os.tmpdir(), "pcraft-mcp-noworker-"));
   cpSync(path.join(ROOT, "dist"), path.join(copy, "dist"), { recursive: true });
   rmSync(path.join(copy, "dist", "server", "eval-worker.cjs"));
@@ -30,6 +30,11 @@ test("子プロセスの入口を外した本体では normalize・保存・差�
     const u = sc(await s.call("pcraft_update_button", { workspaceId: root, path: "settings/x.json", button: "見積書", expectedDigest: b.digest, replacement: JSON.stringify(JSON.parse(SETTINGS_TEXT).pluginInfos[0]), fields: "fields/3740.json" }));
     assert.deepEqual([u.status, u.error.code], ["failed", "EvalError"], JSON.stringify(u));
     assert.equal(readFileSync(path.join(root, "settings", "x.json"), "utf8"), SETTINGS_TEXT, "差し替えない");
+    mkdirSync(path.join(root, "records"), { recursive: true });
+    writeFileSync(path.join(root, "records", "3740-3.json"), readFileSync(path.join(ROOT, "test", "fixtures", "record-3740-3.json")));
+    const p = sc(await s.call("pcraft_preview", { workspaceId: root, path: "settings/x.json", record: "records/3740-3.json", fields: "fields/3740.json" }));
+    assert.deepEqual([p.status, p.error.code], ["failed", "EvalError"], JSON.stringify(p));
+    assert.equal(existsSync(path.join(root, "out")), false, "帳票を書かない");
     assert.ok(!s.output().includes(copy) && !s.output().includes(root), "応答とログに絶対パスを出さない");
   } finally {
     await s.close();
