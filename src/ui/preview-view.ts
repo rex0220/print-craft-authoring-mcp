@@ -11,7 +11,10 @@ export const MESSAGES = {
   waiting: "帳票のプレビューを待っています…",
   missing: "プレビューのデータが届きませんでした。作業フォルダーの out/ の HTML を Chrome で開いてください。",
   tooLarge: "帳票が大きすぎるので、ここには表示しません。作業フォルダーの out/ の HTML を Chrome で開いてください。",
-  cancelled: "試し出力は取り消されました。"
+  cancelled: "試し出力は取り消されました。",
+  /** pcraft_try の式だけの試し（0.3.1。それまでは missing の文が出ていた） */
+  formulas: "この試しは式だけなので、帳票はありません（式の値は会話の中の答えにあります）。",
+  noButtons: "帳票はありません（作らなかったわけは会話の中の答えにあります）。"
 } as const;
 
 const isString = (v: unknown): v is string => typeof v === "string";
@@ -32,7 +35,7 @@ export function payloadOf(meta: unknown): PreviewPayload | null {
     const errors = Array.isArray(x.errors) ? x.errors.filter(isString) : [];
     buttons.push({ menu: x.menu, fileName: x.fileName, paper: x.paper, pages: x.pages, width: x.width, height: x.height, errors, inner: x.inner });
   }
-  return { version: 1, buttons, ...(o.omitted === "too-large" ? { omitted: "too-large" as const } : {}) };
+  return { version: 1, buttons, ...(o.omitted === "too-large" ? { omitted: "too-large" as const } : {}), ...(o.kind === "formulas" ? { kind: "formulas" as const } : {}) };
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(doc: Document, tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -56,6 +59,10 @@ export function renderPreview(root: HTMLElement, payload: PreviewPayload | null)
   }
   if (payload.omitted === "too-large") {
     renderMessage(root, MESSAGES.tooLarge);
+    return [];
+  }
+  if (!payload.buttons.length) {
+    renderMessage(root, payload.kind === "formulas" ? MESSAGES.formulas : MESSAGES.noButtons);
     return [];
   }
   const frames: HTMLElement[] = [];

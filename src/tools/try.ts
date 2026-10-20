@@ -14,6 +14,7 @@ import { failure, ok, type Finding } from "../result.ts";
 import { isToolResult, logDiscardedOutput, prepare, workspaceIdSchema } from "./common.ts";
 import { fromError, rel, removeChecked, writeAtomicChecked } from "./files.ts";
 import { PREVIEW_TOOL_META, previewMeta } from "./preview-app.ts";
+import { PREVIEW_META_KEY } from "../preview-payload.ts";
 
 const NOTE_CLAUDE_CODE = "out/try/ の帳票は架空の値（お試しアプリ）。利用者に Chrome で開いてもらってよい（AI はブラウザーを起動しない）。項目コードはお試しアプリのもので、利用者の設定に書かない";
 const NOTE_DESKTOP = "帳票は会話の中のプレビュー（MCP App）にも表示される。値は架空（お試しアプリ）。項目コードはお試しアプリのもので、利用者の設定に書かない";
@@ -94,6 +95,9 @@ export function registerTry(server: McpServer, ctx: ServerContext): void {
                 : [];
             });
             meta = previewMeta(rendered);
+          } else if (ctx.surface === "desktop") {
+            // 式だけの試し: 帳票は無い。印を付けないと、表示の殻が「データが届きませんでした」と出す（0.3.1。Desktop の QA の確かめで見つけた）
+            meta = { [PREVIEW_META_KEY]: { version: 1, buttons: [], kind: "formulas" } };
           }
           return ok({ ...result, written, removed, note: ctx.surface === "desktop" ? NOTE_DESKTOP : NOTE_CLAUDE_CODE }, { findings, ...(meta ? { meta } : {}) });
         } catch (e) {

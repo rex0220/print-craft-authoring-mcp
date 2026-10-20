@@ -145,7 +145,7 @@ test("表示の殻の描き方（happy-dom）: iframe は sandbox=\"\" と srcdo
   assert.deepEqual([frames[0].style.width, frames[0].style.height], ["400px", "600px"]);
   fitAll(frames, 2000);
   assert.equal(iframe.style.transform, "scale(1)", "大きくはしない");
-  for (const [m, text] of [[undefined, MESSAGES.missing], [{}, MESSAGES.missing], [{ [PREVIEW_META_KEY]: { version: 2, buttons: [] } }, MESSAGES.missing], [{ [PREVIEW_META_KEY]: { version: 1, buttons: [{ menu: "a" }] } }, MESSAGES.missing], [{ [PREVIEW_META_KEY]: { version: 1, buttons: [], omitted: "too-large" } }, MESSAGES.tooLarge]]) {
+  for (const [m, text] of [[undefined, MESSAGES.missing], [{}, MESSAGES.missing], [{ [PREVIEW_META_KEY]: { version: 2, buttons: [] } }, MESSAGES.missing], [{ [PREVIEW_META_KEY]: { version: 1, buttons: [{ menu: "a" }] } }, MESSAGES.missing], [{ [PREVIEW_META_KEY]: { version: 1, buttons: [], omitted: "too-large" } }, MESSAGES.tooLarge], [{ [PREVIEW_META_KEY]: { version: 1, buttons: [], kind: "formulas" } }, MESSAGES.formulas], [{ [PREVIEW_META_KEY]: { version: 1, buttons: [] } }, MESSAGES.noButtons]]) {
     renderPreview(root, payloadOf(m));
     assert.equal(root.textContent, text, JSON.stringify(m));
     assert.equal(root.querySelector("iframe"), null);

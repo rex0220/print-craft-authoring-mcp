@@ -34,4 +34,6 @@ export interface PreviewPayload {
   buttons: PreviewButton[];
   /** 大きすぎて帳票の文書を省いた */
   omitted?: "too-large";
+  /** pcraft_try の式だけの試し（帳票を作らない。0.3.1）。Desktop はツールを呼ぶたびに表示の殻を出すので、帳票が無いわけを殻に伝える */
+  kind?: "formulas";
 }

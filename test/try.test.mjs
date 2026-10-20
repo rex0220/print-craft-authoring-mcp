@@ -63,6 +63,19 @@ test("Claude Code: 式は値とエラーの文を返し、帳票は書かない�
   }
 });
 
+test("Desktop: 式だけの試しは _meta に「帳票なし（式だけ）」の印（表示の殻が「データが届きませんでした」と出さない。0.3.1）", { skip: skip9 }, async () => {
+  const root = makeWorkspace();
+  const s = await connectDesktop(root, { PCRAFT_PLUGIN_ZIP: ZIP9 });
+  try {
+    const r = await s.call("pcraft_try", { app: "formula-sample", records: [1], formulas: [{ formula: "ESC_HTML(\"<b>\")" }] });
+    assert.equal(sc(r).status, "ok", JSON.stringify(sc(r)));
+    assert.deepEqual(r._meta?.[PREVIEW_META_KEY], { version: 1, buttons: [], kind: "formulas" });
+  } finally {
+    await s.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("Desktop: ボタンの帳票を _meta（会話の中のプレビュー）にも入れる。帳票は掃除した inner", { skip: skip9 }, async () => {
   const root = makeWorkspace();
   const s = await connectDesktop(root, { PCRAFT_PLUGIN_ZIP: ZIP9 });
