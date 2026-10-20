@@ -1,0 +1,19 @@
+schema_version: "1.1"
+name: probe
+description: 準備の確かめ。eval の実行で、作業フォルダーが登録済みになり、本物の MCP サーバーが印刷屋の zip を読めるか（build-eval-plugin.mjs の写しで動かす）
+tags: [probe]
+runs: 1
+execution:
+  prompt: |
+    print-craft の pcraft_status を呼び、次に pcraft_workspace_status を呼んでください。
+    それぞれ返った status、ready、next、error.code、error.message をそのまま書いてください。ほかのことはしないでください。
+  max_turns: 6
+  timeout_seconds: 300
+graders:
+  - name: status-called
+    type: tool_used
+    tool: mcp__plugin_print-craft_print-craft__pcraft_status
+  - name: workspace-ok
+    type: regex
+    target: trace
+    pattern: 'pcraft_workspace_status[\s\S]*\\"status\\":\\"ok\\"'

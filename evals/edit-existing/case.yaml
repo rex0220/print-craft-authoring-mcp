@@ -1,0 +1,37 @@
+schema_version: "1.1"
+name: edit-existing
+description: 作業フォルダーの既存の設定（settings/見積書.json。接続のファイルなし）の見積書のボタンの見積日を和暦に直す。pcraft_buttons → pcraft_update_button、頼まれていない list / viewsCsv を変えない、反映方法を設定画面の言葉で（T4・T6）
+tags: [edit, patterns]
+runs: 1
+execution:
+  prompt: |
+    作業フォルダーの settings/見積書.json の「見積書」ボタンで、見積日を「令和8年2月24日」のような和暦で表示するように直してください。
+    項目定義は fields/3740.json、確かめに使うレコードは records/3740-3.json です。
+  max_turns: 30
+  timeout_seconds: 900
+context:
+  scaffold_script: scaffold.sh
+graders:
+  - name: buttons-first
+    type: tool_order
+    before: mcp__plugin_print-craft_print-craft__pcraft_buttons
+    after: mcp__plugin_print-craft_print-craft__pcraft_update_button
+  - name: updated
+    type: tool_used
+    tool: mcp__plugin_print-craft_print-craft__pcraft_update_button
+  - name: saved-wareki
+    type: regex
+    target: { source: file, path: settings/見積書.json }
+    pattern: '令和'
+  - name: no-screen-change
+    type: regex
+    target: trace
+    pattern: '\\"rule\\":\\"button\.(listChanged|viewsChanged)\\"'
+    match: not_contains
+  - name: answer
+    type: llm
+    criteria: |
+      最後の答えを見る。
+      PASS: 次をすべて満たす。(1) 説明の文は日本語で、英語だけの文が混ざっていない（式・関数名・変数名・コード・ファイル名は英字でよい）。(2) 反映方法（設定をアップロード → 取り込み方を選ぶ → 保存 → 運用環境に反映）を伝えている。
+      (3) 取り込み方を設定画面の言葉（全置換 / 一部置換 / 追加）で書いている。前の設定を取り込んだか分からない場合として、全置換と一部置換の両方の場合を書いているか、一部置換（既存のボタンの差し替え）と書いている。
+      FAIL: どれかが欠けている。または「全体を置き換える取り込み」などに言い換えている。

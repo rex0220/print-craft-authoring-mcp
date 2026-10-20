@@ -1,0 +1,41 @@
+schema_version: "1.1"
+name: invoice
+description: 請求書の発行日を和暦、支払期限を翌月末日に。資料の計算パターン（patterns）の式を使い、お試しで確かめる（T5・T6。日付が epoch 秒の数で出ない）
+tags: [patterns, try, report]
+runs: 1
+execution:
+  prompt: |
+    請求書の帳票で、発行日を和暦（令和8年10月20日 のように）で、支払期限を発行日の翌月末日で表示したいです。
+    kintone のアプリはまだ無いので、お試しアプリの見積書の「見積日」を発行日として、式と表示を確かめて見せてください。
+  max_turns: 25
+  timeout_seconds: 600
+graders:
+  - name: read-patterns
+    type: tool_used
+    tool: mcp__plugin_print-craft_print-craft__pcraft_docs
+    input_match: 'patterns|和暦'
+  - name: try-called
+    type: tool_used
+    tool: mcp__plugin_print-craft_print-craft__pcraft_try
+  # pcraft_try が返した値（結果の JSON の "text"）だけを見る（資料の文に同じ日付があっても合わない）
+  - name: wareki
+    type: regex
+    target: trace
+    pattern: '\\"text\\":\\"[^"]*令和8年2月24日'
+  - name: due-date
+    type: regex
+    target: trace
+    pattern: '\\"text\\":\\"[^"]*3月31日'
+  - name: due-date-edge
+    type: regex
+    target: trace
+    pattern: '\\"text\\":\\"[^"]*2月28日'
+  - name: answer
+    type: llm
+    criteria: |
+      最後の答えを見る。
+      PASS: 次をすべて満たす。(1) 説明の文は日本語で、英語だけの文が混ざっていない（式・関数名・変数名・コード・ファイル名は英字でよい）。
+      (2) 発行日を和暦にする式と、支払期限（翌月末日）を出す式を示している（一方の式の一部を変える形で示してもよい）。
+      (3) 試した結果の値を、少なくとも 2 つの日付（たとえば典型の日付と月末の日付）について示している。
+      (4) お試しアプリ（架空の値）で試したと伝えている。
+      FAIL: どれかが欠けている。

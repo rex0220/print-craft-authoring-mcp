@@ -1,0 +1,42 @@
+schema_version: "1.1"
+name: quote
+description: kintone のアプリがまだ無いとき、見積書の形をお試しアプリ quote の pcraft_try で試して見せる（使う場面の決まり「設定を作る前に帳票の形を試す」。print-craft の docs/authoring-try-plan.md 4.3）
+tags: [try, report]
+runs: 1
+execution:
+  prompt: |
+    見積書の帳票（宛名、見積番号、見積日、明細の表、合計）を作りたいです。
+    kintone のアプリはまだ無いので、まず形を試して見せてください。見積日は 2026年2月24日 のように表示してください。
+  max_turns: 20
+  timeout_seconds: 600
+graders:
+  - name: try-button
+    type: tool_used
+    tool: mcp__plugin_print-craft_print-craft__pcraft_try
+    input_match: '"app":"quote"[\s\S]*"button"|"button"[\s\S]*"app":"quote"'
+  - name: no-save
+    type: tool_used
+    tool: mcp__plugin_print-craft_print-craft__pcraft_save_settings
+    min: 0
+    max: 0
+  - name: report-written
+    type: regex
+    target: { source: file, path: out/try/quote-1.html }
+    pattern: '株式会社あれこれ'
+  - name: date-formatted
+    type: regex
+    target: { source: file, path: out/try/quote-1.html }
+    pattern: '2026年2月24日'
+  - name: no-epoch-date
+    type: regex
+    target: { source: file, path: out/try/quote-1.html }
+    pattern: '\b17[0-9]{8}\b'
+    match: not_contains
+  - name: answer
+    type: llm
+    criteria: |
+      最後の答えを見る。
+      PASS: 次をすべて満たす。(1) 説明の文は日本語で、英語だけの文が混ざっていない（式・関数名・変数名・コード・ファイル名は英字でよい）。(2) 試した結果がお試しアプリ（架空の値）によるものだと伝えている。
+      (3) 利用者のアプリで使うときは利用者のアプリの項目（フィールドコード）に合わせる必要がある、またはアプリができたら項目定義を取って作る、という次の手順に触れている。
+      (4) 帳票のファイル（out/try/ の HTML）を開いて見られることか、ページ数・式のエラーの結果に触れている。
+      FAIL: どれかが欠けている。または、お試しアプリの項目コードをそのまま利用者の設定に使えると言っている。
