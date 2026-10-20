@@ -4,7 +4,7 @@
     "mcpVersion": "0.3.0-dev.5",
     "coreVersion": ">=2.2.0 <3.0.0",
     "coreApiVersion": 2,
-    "docsRevision": "2a336f9",
+    "docsRevision": "efb79e5",
     "authoringApiVersions": [1, 2, 3],
     "pluginVersion": { "min": 6 }
   },

@@ -12,7 +12,7 @@ export const DOC_SECTIONS = [
   { key: "deploy", title: "反映方法（設定画面でアップロード）", guide: "deploy.md" },
   { key: "connections", title: "kintone の接続とアプリのフォルダー（接続のファイル。profile、kintone/<profile>/<番号>-<アプリ名>/）", guide: "connections.md" },
   { key: "recipes", title: "帳票レシピ集（0 章が既定の形。R1 見積書 … R7 Web フォント）", ref: "docs/帳票レシピ集.md" },
-  { key: "patterns", title: "計算パターン（和暦・曜日・支払期限・年度、文字列、空・比較・端数。✔ はお試しアプリで確かめた例）", ref: "docs/計算パターン.md" },
+  { key: "patterns", title: "計算パターン（和暦・曜日・支払期限・年度、文字列、空・比較・端数、大きい帳票の式。✔ はお試しアプリで確かめた例）", ref: "docs/計算パターン.md" },
   { key: "patterns-verified", title: "計算パターンの検証の結果（式ごとの結果）", ref: "docs/計算パターン_検証.md" },
   { key: "report-functions", title: "印刷屋の関数・置き換えタグ・エスケープ", ref: "docs/帳票関数リファレンス.md" },
   { key: "spec", title: "設定ファイル仕様（キーの意味・列挙・上限）", ref: "docs/設定ファイル仕様.md" },
