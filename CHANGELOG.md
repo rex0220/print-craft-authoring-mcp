@@ -2,6 +2,13 @@
 
 print-craft MCP（Claude Desktop の拡張機能「印刷屋 設定オーサリング（Print craft）」と、Claude Code のプラグイン `print-craft`）の、利用者に見える変更です。新しい版が上です。
 
+## 0.3.1（未リリース）
+
+中核は `@rex0220/print-craft-authoring-tools` 2.3.2 のまま。資料はテンプレート print-craft-authoring 2ee6d38。
+
+- 資料の章 `qa`: 「帳票の関数について QA を 10 題作って」のような依頼に、帳票関数リファレンス・帳票レシピ集・計算パターン・関数一覧から題材を選び、**答えの式を `pcraft_try` 1 回（10 題）で確かめてから**問題・答え・解説を出す手順（formula MCP 0.3.7 の `qa` と同じ形）。確かめで答えが変わる例: `ESC_HTML` は `"` をエスケープせず、計算式の文字列の中の `\"` は `\` が残る、日付の項目そのままは epoch 秒、`FVAL(数値1)` の桁区切りは項目の設定しだい。`pcraft_try` を使う場面に「QA を作るとき（答えを確かめる）」を足した（指示・目次・`pcraft_try` の説明・`try` の章。テストで照合）
+- 使い方ナビ（`navi`）に QA の頼み方の例
+
 ## 0.3.0（2026-10-20）
 
 中核は `@rex0220/print-craft-authoring-tools` 2.3.2、資料はテンプレート print-craft-authoring 4d3a384。

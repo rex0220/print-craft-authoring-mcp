@@ -7,7 +7,7 @@ import path from "node:path";
 import { ROOT, VERSION, connect, connectClaudeCode } from "./helpers.mjs";
 
 const SOURCE = JSON.parse(readFileSync(path.join(ROOT, "references", "template", "SOURCE.json"), "utf8"));
-const KEYS = ["navi", "howto-new", "howto-edit", "try", "results", "constraints", "usable", "deploy", "connections", "recipes", "patterns", "patterns-verified", "report-functions", "spec", "field-types", "function-list", "function-detail", "function-articles", "css-defaults", "sample-quote", "sample-list"];
+const KEYS = ["navi", "howto-new", "howto-edit", "try", "qa", "results", "constraints", "usable", "deploy", "connections", "recipes", "patterns", "patterns-verified", "report-functions", "spec", "field-types", "function-list", "function-detail", "function-articles", "css-defaults", "sample-quote", "sample-list"];
 const textOf = (r) => r.content.map((c) => c.text).join("\n");
 
 test("目次: 1 行目に版、資料の元のコミット、作業の順と決まり（推し量らない）、章の一覧。作業フォルダーが未登録・zip が未設定でも読める。文章だけ", async () => {
@@ -154,7 +154,7 @@ test("pcraft_try の使う場面の決まりが、サーバーの指示・目次
     const description = tools.find((t) => t.name === "pcraft_try").description;
     const chapter = textOf(await s.call("pcraft_docs", { section: "try" }));
     for (const [name, t] of Object.entries({ instructions, index, description, chapter })) {
-      assert.ok(t.includes("利用者が動きの確認を求めたとき、資料に無い値や端の動き（空・0・改行・改ページ）を断言するとき、資料と自分の理解が食い違うとき、設定を作る前に帳票の形を試すとき"), name);
+      assert.ok(t.includes("利用者が動きの確認を求めたとき、資料に無い値や端の動き（空・0・改行・改ページ）を断言するとき、資料と自分の理解が食い違うとき、設定を作る前に帳票の形を試すとき、QA（問題と答え）を作るとき（答えを確かめる）"), name);
       assert.match(t, /`?formulas`? 10 件まで、または `?button`? 1 つ/, name);
       assert.match(t, /続けて呼ばない/, name);
       assert.match(t, /お試しアプリの項目コードを利用者の設定に書かない|項目コードはお試しアプリのもので、利用者の設定に書かない/, name);
@@ -170,4 +170,25 @@ test("fixture の取り込み方の名前が、印刷屋の設定画面（messag
   const src = readFileSync(MESSAGES, "utf8");
   const ja = ["importModeAll", "importModeReplace", "importModeAdd"].map((k) => src.match(new RegExp(`${k}: \\{ ja: "([^"]+)"`))?.[1]);
   assert.deepEqual(ja, IMPORT_MODES.ja);
+});
+
+// QA（問題と答え）を作る（0.3.1。formula MCP 0.3.7 の qa と同じ形）: 指示・目次・pcraft_docs の説明に qa の案内。章は答えを pcraft_try で確かめてから出す手順
+test("QA の章: 指示・目次・pcraft_docs の説明に qa の案内。章は答えを pcraft_try 1 回（10 題）で確かめる手順と、印刷屋の落とし穴。navi に頼み方の例", async () => {
+  const s = await connectClaudeCode([], {});
+  try {
+    const instructions = String(s.client.getInstructions?.() ?? s.client.getDiscoverResult?.()?.instructions);
+    const index = textOf(await s.call("pcraft_docs", {}));
+    const { tools } = await s.client.listTools();
+    const description = tools.find((t) => t.name === "pcraft_docs").description;
+    for (const t of [instructions, index]) assert.ok(t.includes("QA（問題と答え）の作成を頼まれたら pcraft_docs の qa（答えは pcraft_try で確かめてから出す）"));
+    assert.ok(description.includes("QA（問題と答え）を作るときは section qa"));
+    const qa = textOf(await s.call("pcraft_docs", { section: "qa" }));
+    assert.ok(qa.includes("答えは推し量らず、必ず `pcraft_try` で確かめてから出す"));
+    assert.ok(qa.includes("`pcraft_try` 1 回で計算する"));
+    for (const w of ["ESC_HTML", "epoch 秒", "TABLE_HTML", "`button` で 1 つ試す"]) assert.ok(qa.includes(w), w);
+    const navi = textOf(await s.call("pcraft_docs", { section: "navi" }));
+    assert.ok(navi.includes("帳票の関数について QA を 10 題作って"));
+  } finally {
+    await s.close();
+  }
 });

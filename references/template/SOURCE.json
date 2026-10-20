@@ -1,14 +1,14 @@
 {
   "repository": "rex0220/print-craft-authoring",
-  "commit": "4d3a38479b19cac40c2b25ec4b4879bbfdcf077e",
-  "short": "4d3a384",
+  "commit": "2ee6d387eca5195736a4f9461606a4c8fd003ebe",
+  "short": "2ee6d38",
   "dirty": false,
-  "copiedAt": "2026-10-20T10:35:22.545Z",
+  "copiedAt": "2026-10-20T14:56:24.848Z",
   "files": [
     {
       "path": "docs/使い方ナビ.md",
-      "bytes": 9079,
-      "sha256": "6e8affc0d58d8e7e3859bbabefb3fc6c33475d2bac14d0c7866ad2b0a83bf1cb"
+      "bytes": 9412,
+      "sha256": "02aa9672fc04a26ecb13dd25403951976fd387ac266bfef122446021bb054562"
     },
     {
       "path": "docs/帳票レシピ集.md",

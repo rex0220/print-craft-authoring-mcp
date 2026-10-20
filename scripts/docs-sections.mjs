@@ -7,6 +7,7 @@ export const DOC_SECTIONS = [
   { key: "howto-new", title: "新しい設定を作る（手順）", guide: "howto-new.md" },
   { key: "howto-edit", title: "既存の設定を変える（ボタンの追加・修正）", guide: "howto-edit.md" },
   { key: "try", title: "式と帳票の試し（お試しアプリ。pcraft_try。使う場面の決まり）", guide: "try.md" },
+  { key: "qa", title: "QA（問題と答え）を作る（答えは pcraft_try で確かめてから出す）", guide: "qa.md" },
   { key: "results", title: "結果の読み方（status、normalize のエラー・警告、断る場合）", guide: "results.md" },
   { key: "constraints", title: "制約（守らないと動かない・壊れる）", guide: "constraints.md" },
   { key: "usable", title: "使えるもの（関数・CSS の class・置き換えタグ）", guide: "usable.md" },
