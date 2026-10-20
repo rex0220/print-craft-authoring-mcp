@@ -4,9 +4,9 @@ print-craft MCP（Claude Desktop の拡張機能「印刷屋 設定オーサリ�
 
 ## 0.3.0（2026-10-20）
 
-中核は `@rex0220/print-craft-authoring-tools` 2.3.1、資料はテンプレート print-craft-authoring 2908147。
+中核は `@rex0220/print-craft-authoring-tools` 2.3.2、資料はテンプレート print-craft-authoring 4d3a384。
 
-- 新しいツール `pcraft_try`: お試しアプリ（架空の値の標本: 全項目タイプの `formula-sample`、見積書の `quote`、一覧帳票の `list`、工程表の `gantt`）で、計算式（10 件まで）か 1 ボタンの帳票を試す。式の値・エラーの文・ページの文字を返し、帳票は作業フォルダーの `out/try/` に書く（Claude Desktop は会話の中のプレビューにも）。利用者のアプリ・レコード・kintone は使わない。テーブルの行数（`rows`）と一覧帳票の件数（`count`）を変えられる
+- 新しいツール `pcraft_try`: お試しアプリ（架空の値の標本: 全項目タイプの `formula-sample`、見積書の `quote`、一覧帳票の `list`、工程表の `gantt`）で、計算式（10 件まで）か 1 ボタンの帳票を試す。式の値・エラーの文・ページの文字を返し、帳票は作業フォルダーの `out/try/` に書く（Claude Desktop は会話の中のプレビューにも）。利用者のアプリ・レコード・kintone は使わない。テーブルの行数（`rows`）と一覧帳票の件数（`count`）を変えられる。帳票は印刷屋の既定の共通 CSS（4 行）で描く（ボタンの `css` はその後。アプリの共通 CSS を変えていれば、その分は実機と違う）
 - 式の評価を別のプロセスで: 検査（`pcraft_normalize`、保存の検査）・`pcraft_preview`・`pcraft_try` の評価を、サーバーとは別の子プロセス（Claude Desktop は Worker thread）で動かし、時間とメモリの上限（既定 60 秒・4,096 MiB。環境変数 `PCRAFT_EVAL_TIMEOUT_SEC` / `PCRAFT_EVAL_HEAP_MB`）で止める。重い式でサーバーが止まらない（Claude Desktop では、メモリの上限を超えるとサーバーごと落ちることがある）
 - `pcraft_preview`: Ver.8 までの印刷屋の zip で HTML の `${…}` に数学関数 M_* / 財務関数 R_* を書いたとき、式の誤りの場所に「印刷屋 Ver.9 から使える」を添える
 - `pcraft_update_button`: 差し替えたボタンの、一覧帳票か詳細画面か（`list`）とボタンを出す一覧（`viewsCsv`）が前と違えば警告（`button.listChanged` / `button.viewsChanged`。保存は止めない）
