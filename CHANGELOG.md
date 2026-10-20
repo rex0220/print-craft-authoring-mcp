@@ -2,9 +2,11 @@
 
 print-craft MCP（Claude Desktop の拡張機能「印刷屋 設定オーサリング（Print craft）」と、Claude Code のプラグイン `print-craft`）の、利用者に見える変更です。新しい版が上です。
 
-## 0.2.1（未リリース。中核 2.2.0 の公開の後に日付）
+## 0.2.1（2026-10-20）
 
-- 印刷屋プラグイン Ver.9 に対応（中核を `@rex0220/print-craft-authoring-tools` 2.2.0 に。Ver.9 の zip の decimal.js を読み、数学関数 M_* と財務関数 R_* を検査・preview できる。Ver.8 までの zip で M_* / R_* を使うと、その旨を findings に添える）
+中核は `@rex0220/print-craft-authoring-tools` 2.2.0、資料はテンプレート print-craft-authoring d37b918。
+
+- 印刷屋プラグイン Ver.9 に対応（中核を `@rex0220/print-craft-authoring-tools` 2.2.0 に。Ver.9 の zip の decimal.js を読み、数学関数 M_* と財務関数 R_* を検査・preview できる。Ver.8 までの zip で行の計算式・更新項目に M_* / R_* を使うと、保存の検査（formula.syntax）の文に「印刷屋 Ver.9 から使える」を添える。HTML の `${…}` は保存の検査で評価しないので、preview の式のエラー（場所と件数）になる）
 - 資料（`pcraft_docs`）を tools 2.2.0 のものに（関数一覧に「（Ver.9 から）」、帳票レシピ集・AI作業手順の Ver.9 の制約）
 - `pcraft_docs` の query の結果の上限を 12 節から 40 節に（M_* のような仲間の関数が 1 回で引ける。文字数の上限 24 KiB は今までどおり）
 - 設定を作った・変えた作業の最後の反映方法: 取り込み方は設定画面の言葉（全置換 / 一部置換 / 追加）のまま書き、前の設定を取り込んだか分からなければ両方の場合を書く（指示、目次、`deploy` の章）
