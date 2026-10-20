@@ -2,6 +2,7 @@
 
 2026-10-09 作成。何がどのプロセス・どの配布物にあり、どのデータがどの境界を越えるかを図と表にする。承認: Takashi（2026-10-09）。
 2026-10-10: kintone の接続を接続のファイル（kSQL の `ksql.config.json` と同じ形。作業フォルダーの外）にした（実装案 15 章）。設定項目に秘密の値は無い。
+2026-10-20: 0.3.0 の評価の子プロセスとお試しアプリ（`pcraft_try`）を足した（print-craft の `docs/authoring-try-plan.md` 4.5・4.6。threat-model.md M3・M11・M15・M25）。
 
 ## 1. 配布物（実装案 2 章、5.3、8 章）
 
@@ -44,14 +45,17 @@
                                                    利用者の kintone（*.cybozu.com など）
 ```
 
+0.3.0 から、印刷屋の zip のコードで式を評価する処理（normalize、preview、保存の検査、`pcraft_try`）は評価の子プロセスで動く（Desktop は Electron の Node が fork できないので、同じプロセスの Worker thread）。zip の版と authoring API を確かめる読み込みは上の図の主のプロセスにも残る。子プロセスは同じ OS ユーザーの権限で動き、sandbox ではない（重い式でサーバーを止めないための分離。threat-model.md M15・M25）。
+
 ## 3. 境界を越えるデータ
 
 | 境界 | 越えるもの | 越えないもの |
 | --- | --- | --- |
 | ① 設定項目 → print-craft MCP | 接続のファイル・zip・作業フォルダーのパス（環境変数 `mcp_config.env` と引数） | 秘密の値（設定項目に無い） |
 | ⑤ 接続のファイル → print-craft MCP | 接続先、ゲストスペース、アプリごとのトークンかログイン名とパスワード（`env:` / `passwordEnv` が名前を書いた環境変数の値も）。ツールを呼ぶたびに読む | 作業フォルダーの中・中を指すファイル（読まない）。`KSQL_*` の環境変数（読まない） |
-| ② print-craft MCP → Claude（モデル。会話は Anthropic に送られる） | 項目定義の要約（ラベル・フィールドコード・型・選択肢）、レコードの**形の要約**、アプリの情報（ID・名前・コード）、新しく作った設定・ボタンの中身（data: の URL は先頭と長さ）、normalize / preview の結果、版・診断（接続のファイルの名前、profile の名前・ホスト・ゲストスペース・認証の種類・トークンのあるアプリの番号と使えるか）、資料（`pcraft_docs`） | **認証情報**、環境変数の名前、接続のファイルのパス、**レコードの値**（Desktop。preview の帳票の文書は結果の `_meta` で会話の中の MCP App にだけ渡す。実装案 16 章）、作成者・更新者・選択肢のユーザーのコード、kintone のサーバーの message、作業フォルダーの外のファイル、印刷屋の zip の中身 |
-| ③ print-craft MCP ↔ 作業フォルダー | 項目定義（`fields.json`）、レコードの値（`records/`。preview の入力）、設定、preview の HTML（`out/`。レコードの値を含む）、アプリのフォルダーの印（profile・接続先・ゲストスペース・アプリ ID。秘密でない） | 秘密の値（作業フォルダーに書かない） |
+| ② print-craft MCP → Claude（モデル。会話は Anthropic に送られる） | 項目定義の要約（ラベル・フィールドコード・型・選択肢）、レコードの**形の要約**、アプリの情報（ID・名前・コード）、新しく作った設定・ボタンの中身（data: の URL は先頭と長さ）、normalize / preview の結果、`pcraft_try` の結果（お試しアプリの架空の値: 式の値・エラーの文・ページの文字。0.3.0）、版・診断（接続のファイルの名前、profile の名前・ホスト・ゲストスペース・認証の種類・トークンのあるアプリの番号と使えるか）、資料（`pcraft_docs`） | **認証情報**、環境変数の名前、接続のファイルのパス、**レコードの値**（Desktop。preview の帳票の文書は結果の `_meta` で会話の中の MCP App にだけ渡す。実装案 16 章）、作成者・更新者・選択肢のユーザーのコード、kintone のサーバーの message、作業フォルダーの外のファイル、印刷屋の zip の中身 |
+| print-craft MCP ↔ 評価の子プロセス（0.3.0） | 評価の仕事（設定、項目定義、preview のレコードの値、zip のパス、検証済みの接続先の URL）と結果（JSON にできる形に直したもの。大きさの上限つき）。環境変数は TZ・SystemRoot・windir・ELECTRON_RUN_AS_NODE だけ | 秘密の値、接続のファイルのパス、ほかの環境変数（PATH も）。子プロセスの標準出力・標準エラー（親に流さず文字数だけ数える）。想定外の誤りの元の文（種類と決まった文だけ） |
+| ③ print-craft MCP ↔ 作業フォルダー | 項目定義（`fields.json`）、レコードの値（`records/`。preview の入力）、設定、preview の HTML（`out/`。レコードの値を含む）、お試しの帳票（`out/try/`。架空の値）、アプリのフォルダーの印（profile・接続先・ゲストスペース・アプリ ID。秘密でない） | 秘密の値（作業フォルダーに書かない） |
 | ④ print-craft MCP → kintone | GET の要求（許可した API だけ）、認証の見出し（対象のアプリの `X-Cybozu-API-Token` か `X-Cybozu-Authorization`） | 書き込み（GET だけ）、ほかのアプリのトークン |
 | print-craft MCP → その他 | 無し（rex0220 や第三者には送らない。preview の HTML も外部を読まない。Web フォントは中核 tools 2.0.1 から preview では読まない） | — |
 

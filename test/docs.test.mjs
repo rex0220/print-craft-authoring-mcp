@@ -7,7 +7,7 @@ import path from "node:path";
 import { ROOT, VERSION, connect, connectClaudeCode } from "./helpers.mjs";
 
 const SOURCE = JSON.parse(readFileSync(path.join(ROOT, "references", "template", "SOURCE.json"), "utf8"));
-const KEYS = ["howto-new", "howto-edit", "results", "constraints", "usable", "deploy", "connections", "recipes", "report-functions", "spec", "field-types", "function-list", "function-detail", "function-articles", "css-defaults", "sample-quote", "sample-list"];
+const KEYS = ["howto-new", "howto-edit", "try", "results", "constraints", "usable", "deploy", "connections", "recipes", "report-functions", "spec", "field-types", "function-list", "function-detail", "function-articles", "css-defaults", "sample-quote", "sample-list"];
 const textOf = (r) => r.content.map((c) => c.text).join("\n");
 
 test("目次: 1 行目に版、資料の元のコミット、作業の順と決まり（推し量らない）、章の一覧。作業フォルダーが未登録・zip が未設定でも読める。文章だけ", async () => {
@@ -98,12 +98,35 @@ test("締めの文: サーバーの指示と目次に同じ決まり（設定画
     assert.equal(b.replace("（deploy）", ""), a, "指示と目次で同じ文");
     assert.ok(a.includes(`設定画面の言葉（${IMPORT_MODES.ja.join(" / ")}）`), a);
     assert.match(a, /言い換えない/);
+    // 3 つの場合（0.3.0。0.2.1 の Desktop の確かめで「全置換」の場合が抜けた。print-craft の docs/authoring-try-plan.md 4.4）
+    assert.match(a, /印刷屋の設定が無いアプリは全置換、ボタンを足すなら追加、既存のボタンを差し替えるなら一部置換/);
     assert.match(a, /両方の場合を書く/);
     assert.match(a, /説明だけの答えには付けない/);
     const deploy = textOf(await s.call("pcraft_docs", { section: "deploy" }));
     for (const w of IMPORT_MODES.ja) assert.ok(deploy.includes(`「${w}」`), w);
     assert.match(deploy, /言い換えない/);
     assert.match(deploy, /両方の場合を書く/);
+  } finally {
+    await s.close();
+  }
+});
+
+// pcraft_try の使う場面（0.3.0。print-craft の docs/authoring-try-plan.md 4.3）: 指示・目次・ツールの説明・try の章で同じ決まり
+test("pcraft_try の使う場面の決まりが、サーバーの指示・目次・ツールの説明・try の章で同じ", async () => {
+  const s = await connectClaudeCode([], {});
+  try {
+    const instructions = String(s.client.getInstructions?.() ?? s.client.getDiscoverResult?.()?.instructions);
+    const index = textOf(await s.call("pcraft_docs", {}));
+    const { tools } = await s.client.listTools();
+    const description = tools.find((t) => t.name === "pcraft_try").description;
+    const chapter = textOf(await s.call("pcraft_docs", { section: "try" }));
+    for (const [name, t] of Object.entries({ instructions, index, description, chapter })) {
+      assert.ok(t.includes("利用者が動きの確認を求めたとき、資料に無い値や端の動き（空・0・改行・改ページ）を断言するとき、資料と自分の理解が食い違うとき、設定を作る前に帳票の形を試すとき"), name);
+      assert.match(t, /`?formulas`? 10 件まで、または `?button`? 1 つ/, name);
+      assert.match(t, /続けて呼ばない/, name);
+      assert.match(t, /お試しアプリの項目コードを利用者の設定に書かない|項目コードはお試しアプリのもので、利用者の設定に書かない/, name);
+      assert.match(t, /資料/, name);
+    }
   } finally {
     await s.close();
   }

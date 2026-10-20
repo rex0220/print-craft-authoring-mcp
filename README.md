@@ -32,7 +32,7 @@ kintone の印刷屋プラグイン（rex0220 Print craft）の帳票の設定 J
 | `test/` | 試験（束ねた本体を MCP のクライアントで起動する。kintone は `test/mock-fetch.mjs` の偽物） |
 | `prototype/` | 段階 0 の試作（0-3a、0-3b、0-4） |
 
-ツール: `pcraft_docs`、`pcraft_status`、`pcraft_workspace_status`、`pcraft_save_settings`、`pcraft_update_button`、`pcraft_buttons`、`pcraft_normalize`、`pcraft_preview`、`pcraft_fields`、`pcraft_record`、`pcraft_pull`、`pcraft_files`、`pcraft_take`、`pcraft_edit`、`pcraft_diff`（Claude Code と Desktop）、`kintone_get_app`、`kintone_list_records`（Desktop だけ。Claude Code では公式の kintone MCP）。
+ツール: `pcraft_docs`、`pcraft_status`、`pcraft_workspace_status`、`pcraft_save_settings`、`pcraft_update_button`、`pcraft_buttons`、`pcraft_normalize`、`pcraft_preview`、`pcraft_try`（0.3.0 から。お試しアプリ）、`pcraft_fields`、`pcraft_record`、`pcraft_pull`、`pcraft_files`、`pcraft_take`、`pcraft_edit`、`pcraft_diff`（Claude Code と Desktop）、`kintone_get_app`、`kintone_list_records`（Desktop だけ。Claude Code では公式の kintone MCP）。
 
 ## 設定項目
 

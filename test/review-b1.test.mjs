@@ -184,11 +184,42 @@ test("MAJOR 3: 診断は zip を実際に読む（無い・zip でないなら r
   }
 });
 
+const ZIP8 = process.env.PCRAFT_TEST_PLUGIN_ZIP8 ?? path.resolve(ZIP, "..", "print-craft-plugin8.zip");
+
+test("Ver.8 の zip の preview: HTML の ${…} の M_SIN は場所と「Ver.9 から使える」だけ（0.3.0。print-craft の docs/authoring-try-plan.md 4.4）", { skip: skip || (!existsSync(ZIP8) && `印刷屋 Ver.8 の zip が無い: ${ZIP8}`) }, async () => {
+  const root = makeWorkspace();
+  mkdirSync(path.join(root, "settings"));
+  mkdirSync(path.join(root, "records"));
+  writeFileSync(path.join(root, "records", "3740-3.json"), RECORD_TEXT);
+  const base = JSON.parse(SETTINGS_TEXT);
+  const row = base.pluginInfos[0].tagsInfo.fieldsInfo[2];
+  row.html = `${row.html}<p>\${M_SIN(1)}</p>`;
+  writeFileSync(path.join(root, "settings", "a.json"), JSON.stringify(base));
+  const s = await connectClaudeCode([root], { PCRAFT_PLUGIN_ZIP: ZIP8 });
+  try {
+    const r = sc(await s.call("pcraft_preview", { workspaceId: root, path: "settings/a.json", record: "records/3740-3.json", fields: "fields/3740.json" }));
+    assert.equal(r.status, "ok", JSON.stringify(r));
+    const [x] = r.result.results;
+    assert.deepEqual(x.errors, ["HTML 設定 3 行目の ${…} の評価に失敗（誤りの文は値を含みうるので返さない）。M_SIN() は印刷屋 Ver.9 から使える（使っている印刷屋の zip は Ver.8）"]);
+    assert.equal(x.errorCount, 1);
+  } finally {
+    await s.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("BLOCKER 2 / MINOR 2: 式の誤りは場所だけ（文は返さない）、findings は 100 件まで（中身の関数）", async () => {
   const { safeRenderError } = await import("../src/tools/preview.ts");
   assert.equal(safeRenderError("HTML 設定 3 行目 ${DATE_FORMAT(宛名)}: 日付として読めない: □□□□株式会社"), "HTML 設定 3 行目の ${…} の評価に失敗（誤りの文は値を含みうるので返さない）");
   assert.equal(safeRenderError("HTML 設定 4 行目の計算式: S-0000003 は数値でない"), "HTML 設定 4 行目の計算式の評価に失敗（誤りの文は値を含みうるので返さない）");
   assert.equal(safeRenderError("何か別の文 □□□□株式会社"), "式の評価に失敗（誤りの文は値を含みうるので返さない）");
+  // Ver.8 までの zip の M_* / R_*（0.3.0。print-craft の docs/authoring-try-plan.md 4.4）: 中核の決まった文（関数名と Ver.9 から）だけを添える。版が 9 以上・文が厳密でなければ添えない
+  const NA = "HTML 設定 3 行目 ${M_SIN(数値)}: M_SIN() is not available.";
+  assert.equal(safeRenderError(NA, "8"), "HTML 設定 3 行目の ${…} の評価に失敗（誤りの文は値を含みうるので返さない）。M_SIN() は印刷屋 Ver.9 から使える（使っている印刷屋の zip は Ver.8）");
+  assert.equal(safeRenderError("HTML 設定 4 行目の計算式: R_PMT() is not available.", "7"), "HTML 設定 4 行目の計算式の評価に失敗（誤りの文は値を含みうるので返さない）。R_PMT() は印刷屋 Ver.9 から使える（使っている印刷屋の zip は Ver.7）");
+  assert.equal(safeRenderError(NA, "9"), "HTML 設定 3 行目の ${…} の評価に失敗（誤りの文は値を含みうるので返さない）");
+  assert.equal(safeRenderError(NA), "HTML 設定 3 行目の ${…} の評価に失敗（誤りの文は値を含みうるので返さない）", "版が分からなければ添えない");
+  assert.equal(safeRenderError(`${NA} □□□□株式会社`, "8"), "HTML 設定 3 行目の ${…} の評価に失敗（誤りの文は値を含みうるので返さない）");
   assert.match(safeRenderError('ページ要素（class="rex0220-pcraft-page"）が無い。印刷屋は 0 ページの PDF を作る'), /ページ要素/);
   // 中核の preview の掃除の確かめが通らず帳票を出さなかった（tools 2.0.1）: 式の誤りと言い換えず、決まった文
   assert.equal(safeRenderError("帳票を表示しない: 掃除した帳票の HTML をブラウザーが読むと、掃除の結果と違う形になる（タグでない「<」がある（注釈・CDATA・処理命令など））。…"), "帳票を表示しない（掃除した帳票の HTML をブラウザーが読むと形が変わる。レコードの値や HTML 設定に、注釈・CDATA・SVG などの書き方が無いか確かめる）");
