@@ -49,6 +49,11 @@ test("章: 手順は丸ごと、大きい資料は見出しの一覧（query で
     const any = textOf(await s.call("pcraft_docs", { query: "TABLE_HTML" }));
     assert.match(any, /\[report-functions/);
     assert.ok(any.length <= 26 * 1024);
+    // 空白で区切った言葉は全部を含む節（順は問わない。0.3.0）
+    for (const query of ["${ 改行", "改行 ${"]) {
+      const multi = textOf(await s.call("pcraft_docs", { query }));
+      assert.match(multi, /の中には\*\*改行と `\}` を書けない/, query);
+    }
     const none = textOf(await s.call("pcraft_docs", { query: "NO_SUCH_FUNCTION_XYZ" }));
     assert.match(none, /合う節は無い/);
     const unknown = await s.call("pcraft_docs", { section: "howto" });

@@ -109,9 +109,13 @@ export function splitEntries(s: DocSection): Entry[] {
   return out;
 }
 
-/** query に合う節（関数名がその節の最初の行にあるものを先に） */
+/**
+ * query に合う節（関数名がその節の最初の行にあるものを先に）。空白で区切った言葉は、全部を含む節（順は問わない。0.3.0: 「${ 改行」が
+ * 「`${…}` の中には改行…」に合わなかった。自動の確かめ evals/invoice で分かった）
+ */
 export function search(query: string, key?: string): { text: string; count: number; truncated: boolean } {
   const q = query.trim().toLowerCase();
+  const terms = q.split(/\s+/).filter(Boolean);
   const targets = key ? DOCS.sections.filter((s) => s.key === key) : DOCS.sections;
   const word = new RegExp(`(^|[^A-Za-z0-9_])${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^A-Za-z0-9_]|$)`, "i");
   const scored: Array<{ e: Entry; score: number }> = [];
@@ -119,8 +123,8 @@ export function search(query: string, key?: string): { text: string; count: numb
     for (const e of splitEntries(s)) {
       const head = e.head.toLowerCase();
       const body = e.text.toLowerCase();
-      if (!body.includes(q)) continue;
-      scored.push({ e, score: word.test(e.head) ? 0 : head.includes(q) ? 1 : 2 });
+      if (!terms.every((t) => body.includes(t))) continue;
+      scored.push({ e, score: word.test(e.head) ? 0 : terms.every((t) => head.includes(t)) ? 1 : 2 });
     }
   }
   scored.sort((a, b) => a.score - b.score);

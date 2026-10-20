@@ -21,7 +21,7 @@ export function registerDocs(server: McpServer, _ctx: ServerContext): void {
       inputSchema: z
         .object({
           section: z.string().min(1).max(60).optional().describe("章の名前（目次の section。例 howto-new、recipes、function-detail）"),
-          query: z.string().min(1).max(100).optional().describe("探す言葉（関数名など。例 TABLE_HTML）。section と一緒ならその章だけから")
+          query: z.string().min(1).max(100).optional().describe("探す言葉（関数名など。例 TABLE_HTML。空白で区切ると全部を含む節。例 ${ 改行）。section と一緒ならその章だけから")
         })
         .strict(),
       annotations: { readOnlyHint: true, openWorldHint: false }
